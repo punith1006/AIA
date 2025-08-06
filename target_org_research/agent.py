@@ -618,7 +618,7 @@ sales_intelligence_report_composer = LlmAgent(
 
     ---
     ### INPUT DATA SOURCES
-    * Research Plan: `{research_plan}`
+    * Research Plan: `{sales_research_plan}`
     * Sales Intelligence Findings: `{sales_intelligence_findings}`
     * Citation Sources: `{sources}`
     * Report Structure: `{sales_report_sections}`
