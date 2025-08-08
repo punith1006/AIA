@@ -44,125 +44,63 @@ class PersonaFeedback(BaseModel):
     )
 
 
-class CustomerPersona(BaseModel):
-    """Model representing a detailed customer persona with Apollo.io compatible filters."""
+class PersonaData(BaseModel):
+    """Simplified model for collecting persona data for Apollo.io parameter generation."""
     
-    persona_name: str = Field(description="Descriptive name for this persona (e.g., 'Tech-Forward Healthcare Director')")
+    persona_name: str = Field(description="Descriptive name for this persona")
+    job_titles: list[str] = Field(description="List of relevant job titles")
+    seniority_levels: list[str] = Field(description="Seniority levels (director, vp, c_suite, etc.)")
+    departments: list[str] = Field(description="Relevant departments")
+    company_sizes: list[str] = Field(description="Company size ranges")
+    industries: list[str] = Field(description="Relevant industries")
+    locations: list[str] = Field(description="Geographic locations/regions")
+    skills: list[str] = Field(description="Professional skills and competencies")
+    keywords_positive: list[str] = Field(description="Keywords for positive targeting")
+    keywords_negative: list[str] = Field(description="Keywords to exclude")
+    company_keywords: list[str] = Field(description="Company-level keywords")
+    technologies: list[str] = Field(description="Technologies and tools used")
+    pain_points: list[str] = Field(description="Key challenges and problems")
+    current_solutions: list[str] = Field(description="Existing tools/solutions they use")
+
+
+class PersonaDataCollection(BaseModel):
+    """Model representing a collection of persona data."""
     
-    # Demographics & Firmographics
-    job_titles: list[str] = Field(description="List of relevant job titles for Apollo.io 'person_titles' filter")
-    seniority_levels: list[str] = Field(description="Seniority levels (e.g., 'director', 'vp', 'c_suite') for Apollo.io 'person_seniorities' filter")
-    departments: list[str] = Field(description="Relevant departments (e.g., 'information_technology', 'marketing') for Apollo.io 'contact_departments' filter")
-    company_sizes: list[str] = Field(description="Company size ranges (e.g., '11-50', '51-200') for Apollo.io 'organization_num_employees_ranges' filter")
-    industries: list[str] = Field(description="Relevant industries for Apollo.io 'organization_industry_tag_ids' filter")
-    locations: list[str] = Field(description="Geographic locations/regions for Apollo.io location filters")
+    personas: list[PersonaData] = Field(description="List of personas with Apollo.io relevant data")
+
+
+class ApolloSearchParameters(BaseModel):
+    """Comprehensive Apollo.io People Search API parameters."""
     
-    # Behavioral & Psychographic
-    pain_points: list[str] = Field(description="Key challenges and problems this persona faces")
-    motivations: list[str] = Field(description="Primary motivations and goals driving purchase decisions")
-    decision_factors: list[str] = Field(description="Key factors influencing their buying decisions")
-    preferred_channels: list[str] = Field(description="Preferred communication and information channels")
-    technology_adoption: str = Field(description="Technology adoption profile (early adopter, mainstream, laggard)")
+    # Person-level filters
+    person_titles: list[str] = Field(default=[], description="Job titles to search for")
+    person_locations: list[str] = Field(default=[], description="Person locations (City, State, Country format)")
+    person_seniorities: list[str] = Field(default=[], description="Seniority levels")
+    person_departments: list[str] = Field(default=[], description="Department classifications")
+    person_skills: list[str] = Field(default=[], description="Professional skills")
+    person_keywords: list[str] = Field(default=[], description="Keywords associated with person")
     
-    # Product-Specific
-    current_solutions: list[str] = Field(description="Existing tools/solutions they likely use")
-    alternative_solutions: list[str] = Field(description="Alternative solutions they might consider")
-    buying_triggers: list[str] = Field(description="Events/situations that trigger buying behavior")
-    success_metrics: list[str] = Field(description="How they measure success/ROI")
+    # Organization-level filters
+    organization_locations: list[str] = Field(default=[], description="Organization locations")
+    organization_num_employees_ranges: list[str] = Field(default=[], description="Employee count ranges")
+    organization_industry_tag_ids: list[str] = Field(default=[], description="Industry classifications")
+    organization_keywords: list[str] = Field(default=[], description="Organization keywords")
+    organization_technologies: list[str] = Field(default=[], description="Technologies used by organizations")
     
-    # Apollo.io Search Optimization
-    keywords_positive: list[str] = Field(description="Keywords for Apollo.io 'contact_keywords' filter (positive signals)")
-    keywords_negative: list[str] = Field(description="Keywords to exclude in searches (negative signals)")
-    company_keywords: list[str] = Field(description="Company-level keywords for 'organization_keywords' filter")
+    # Exclusion filters
+    person_not_titles: list[str] = Field(default=[], description="Job titles to exclude")
+    person_not_keywords: list[str] = Field(default=[], description="Keywords to exclude for persons")
+    organization_not_keywords: list[str] = Field(default=[], description="Organization keywords to exclude")
     
-    # Persona Intelligence
-    persona_description: str = Field(description="Detailed description of this persona's profile and characteristics")
-    market_size_estimate: str = Field(description="Estimated market size or prevalence of this persona")
-    conversion_potential: str = Field(description="Assessment of conversion potential (high/medium/low) and reasoning")
-
-
-class CustomerPersonaList(BaseModel):
-    """Model representing a list of customer personas."""
+    # Contact data filters
+    email_status: list[str] = Field(default=[], description="Email status filters (verified, likely, etc.)")
+    phone_status: list[str] = Field(default=[], description="Phone status filters")
     
-    personas: list[CustomerPersona] = Field(description="List of 6-8 detailed customer personas optimized for Apollo.io lead generation")
-
-
-# --- Callbacks ---
-def collect_persona_sources_callback(callback_context: CallbackContext) -> None:
-    """Collects and organizes web-based research sources for persona research."""
-    session = callback_context._invocation_context.session
-    url_to_short_id = callback_context.state.get("url_to_short_id", {})
-    sources = callback_context.state.get("sources", {})
-    id_counter = len(url_to_short_id) + 1
-    for event in session.events:
-        if not (event.grounding_metadata and event.grounding_metadata.grounding_chunks):
-            continue
-        chunks_info = {}
-        for idx, chunk in enumerate(event.grounding_metadata.grounding_chunks):
-            if not chunk.web:
-                continue
-            url = chunk.web.uri
-            title = (
-                chunk.web.title
-                if chunk.web.title != chunk.web.domain
-                else chunk.web.domain
-            )
-            if url not in url_to_short_id:
-                short_id = f"src-{id_counter}"
-                url_to_short_id[url] = short_id
-                sources[short_id] = {
-                    "short_id": short_id,
-                    "title": title,
-                    "url": url,
-                    "domain": chunk.web.domain,
-                    "supported_claims": [],
-                }
-                id_counter += 1
-            chunks_info[idx] = url_to_short_id[url]
-        if event.grounding_metadata.grounding_supports:
-            for support in event.grounding_metadata.grounding_supports:
-                confidence_scores = support.confidence_scores or []
-                chunk_indices = support.grounding_chunk_indices or []
-                for i, chunk_idx in enumerate(chunk_indices):
-                    if chunk_idx in chunks_info:
-                        short_id = chunks_info[chunk_idx]
-                        confidence = (
-                            confidence_scores[i] if i < len(confidence_scores) else 0.5
-                        )
-                        text_segment = support.segment.text if support.segment else ""
-                        sources[short_id]["supported_claims"].append(
-                            {
-                                "text_segment": text_segment,
-                                "confidence": confidence,
-                            }
-                        )
-    callback_context.state["url_to_short_id"] = url_to_short_id
-    callback_context.state["sources"] = sources
-
-
-def persona_citation_replacement_callback(
-    callback_context: CallbackContext,
-) -> genai_types.Content:
-    """Replaces citation tags in persona report with Markdown-formatted links."""
-    final_report = callback_context.state.get("final_persona_report", "")
-    sources = callback_context.state.get("sources", {})
-
-    def tag_replacer(match: re.Match) -> str:
-        short_id = match.group(1)
-        if not (source_info := sources.get(short_id)):
-            logging.warning(f"Invalid citation tag found and removed: {match.group(0)}")
-            return ""
-        display_text = source_info.get("title", source_info.get("domain", short_id))
-        return f" [{display_text}]({source_info['url']})"
-
-    processed_report = re.sub(
-        r'<cite\s+source\s*=\s*["\']?\s*(src-\d+)\s*["\']?\s*/>',
-        tag_replacer,
-        final_report,
-    )
-    processed_report = re.sub(r"\s+([.,;:])", r"\1", processed_report)
-    callback_context.state["final_persona_report_with_citations"] = processed_report
-    return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
+    # Search configuration
+    page: int = Field(default=1, description="Page number for pagination")
+    per_page: int = Field(default=100, description="Results per page (max 100)")
+    sort_by_field: str = Field(default="relevance", description="Field to sort results by")
+    sort_ascending: bool = Field(default=False, description="Sort order")
 
 
 # --- Custom Agent for Loop Control ---
@@ -188,175 +126,185 @@ class PersonaEscalationChecker(BaseAgent):
             yield Event(author=self.name)
 
 
-# --- STREAMLINED CUSTOMER PERSONA AGENT DEFINITIONS ---
+# --- Apollo.io Parameter Consolidator ---
+class ApolloParameterConsolidator(BaseAgent):
+    """Consolidates all persona data into unified Apollo.io search parameters."""
+    
+    def __init__(self, name: str = "apollo_parameter_consolidator"):
+        super().__init__(name=name)
+
+    async def _run_async_impl__(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
+        persona_data = ctx.session.state.get("persona_data_collection", {}).get("personas", [])
+        
+        # Consolidate all persona data into unified parameters
+        consolidated_params = ApolloSearchParameters()
+        
+        for persona in persona_data:
+            # Person-level consolidation
+            consolidated_params.person_titles.extend(persona.get("job_titles", []))
+            consolidated_params.person_seniorities.extend(persona.get("seniority_levels", []))
+            consolidated_params.person_departments.extend(persona.get("departments", []))
+            consolidated_params.person_locations.extend(persona.get("locations", []))
+            consolidated_params.person_skills.extend(persona.get("skills", []))
+            consolidated_params.person_keywords.extend(persona.get("keywords_positive", []))
+            
+            # Organization-level consolidation
+            consolidated_params.organization_locations.extend(persona.get("locations", []))
+            consolidated_params.organization_num_employees_ranges.extend(persona.get("company_sizes", []))
+            consolidated_params.organization_industry_tag_ids.extend(persona.get("industries", []))
+            consolidated_params.organization_keywords.extend(persona.get("company_keywords", []))
+            consolidated_params.organization_technologies.extend(persona.get("technologies", []))
+            
+            # Exclusion filters
+            consolidated_params.person_not_keywords.extend(persona.get("keywords_negative", []))
+        
+        # Remove duplicates and clean up
+        for field_name, field_value in consolidated_params.__dict__.items():
+            if isinstance(field_value, list):
+                # Remove duplicates while preserving order
+                setattr(consolidated_params, field_name, list(dict.fromkeys(field_value)))
+        
+        # Set optimal search configuration
+        consolidated_params.email_status = ["verified", "likely"]
+        consolidated_params.per_page = 100
+        consolidated_params.sort_by_field = "relevance"
+        
+        # Store final parameters
+        ctx.session.state["apollo_search_parameters"] = consolidated_params.dict()
+        yield Event(author=self.name, content="Apollo.io search parameters consolidated and optimized.")
+
+
+# --- STREAMLINED AGENTS ---
 
 consolidated_persona_researcher = LlmAgent(
     model=config.worker_model,
     name="consolidated_persona_researcher",
-    description="Executes comprehensive customer persona research in streamlined phases focusing on competitor customers, demographics, and behavioral intelligence.",
+    description="Executes comprehensive customer persona research focused on Apollo.io parameter optimization.",
     planner=BuiltInPlanner(
         thinking_config=genai_types.ThinkingConfig(include_thoughts=True)
     ),
     instruction=f"""
-    You are a specialized customer research analyst focused on developing detailed personas through efficient market research.
+    You are a specialized customer research analyst focused on gathering data for Apollo.io lead generation optimization.
 
-    **STREAMLINED RESEARCH MISSION:**
-    Conduct focused research in 3 core phases to develop comprehensive customer personas optimized for Apollo.io lead generation.
+    **MISSION:** Conduct focused research to collect precise demographic, firmographic, and behavioral data optimized for Apollo.io People Search API parameters.
 
-    **PHASE 1: COMPETITOR & MARKET LANDSCAPE (33% of effort)**
+    **RESEARCH FOCUS AREAS:**
 
-    *Core Competitor Research:*
-    - "[User's product category] competitors alternatives market leaders"
-    - "[User's product] vs [category] competitive analysis comparison"
-    - "[Top 3-5 competitors] customer demographics target market"
-    - "[Competitor names] G2 Capterra customer reviews analysis"
-    - "[Product category] market segments customer types"
+    **1. Job Title & Role Intelligence (25%)**
+    - "[User's product category] typical buyers job titles exact terms"
+    - "[Product category] decision makers authority levels titles"
+    - "[Competitor] customer job titles LinkedIn analysis"
+    - "[Product category] champion roles influencer titles"
+    - "[Industry] [product category] organizational hierarchy titles"
 
-    *Competitor Customer Intelligence:*
-    - "[Competitor A] [Competitor B] customer job titles roles"
-    - "[Competitor] case studies customer success stories"
-    - "[Product category] buyer personas decision makers"
-    - "[Competitor] customer testimonials company sizes"
-    - "[Product category] switching behavior customer migration"
-
-    **PHASE 2: CUSTOMER DEMOGRAPHICS & ROLES (33% of effort)**
-
-    *Decision Maker & Role Analysis:*
-    - "[Product category] typical buyers job titles departments"
-    - "[Product category] decision makers authority levels"
-    - "[Industry relevant to product] [product category] organizational structure"
-    - "[Product category] champion influencer roles responsibilities"
-    - "[Product category] buying committee procurement process"
-
-    *Company & Industry Patterns:*
-    - "[Product category] company size customer segments patterns"
+    **2. Company & Industry Targeting (25%)**
+    - "[Product category] company size customer segments adoption"
     - "[Product category] industry verticals target markets"
-    - "[Product category] geographic distribution customer base"
-    - "[Industry] [company size] [product category] adoption rates"
-    - "[Product category] budget ranges pricing customer tiers"
+    - "[Product category] geographic distribution customer regions"
+    - "[Competitor] customer companies industry analysis"
+    - "[Product category] technology stack company characteristics"
 
-    **PHASE 3: BEHAVIORAL INTELLIGENCE & APOLLO OPTIMIZATION (34% of effort)**
+    **3. Skills & Technology Intelligence (25%)**
+    - "[Target roles] professional skills competencies LinkedIn"
+    - "[Product category] user technical skills requirements"
+    - "[Industry] [target roles] technology adoption tools"
+    - "[Product category] complementary technologies integrations"
+    - "[Competitor] customer technology stack analysis"
 
-    *Pain Points & Buying Behavior:*
-    - "[Target roles] [relevant industry] pain points challenges"
-    - "[Product category] buying triggers decision factors"
-    - "[Product category] evaluation criteria selection process"
-    - "[Target personas] technology adoption digital behavior"
-    - "[Product category] ROI metrics success measurement"
+    **4. Behavioral & Intent Signals (25%)**
+    - "[Target personas] pain points challenges keywords"
+    - "[Product category] buying intent signals behaviors"
+    - "[Target roles] professional development interests"
+    - "[Product category] evaluation criteria decision factors"
+    - "[Industry] [product category] adoption triggers events"
 
-    *Apollo.io Filter Optimization:*
-    - "[Product category] LinkedIn job titles Apollo filtering"
-    - "[Target roles] LinkedIn keywords profile terms"
-    - "[Product category] company technology signals"
-    - "[Target industries] [product category] Apollo search terms"
-    - "[Competitor] customer companies Apollo filters"
+    **APOLLO.IO OPTIMIZATION PRIORITIES:**
+    - **Exact Job Titles:** Research specific, searchable job title variations
+    - **Skills & Keywords:** Identify professional skills and role-specific keywords
+    - **Company Characteristics:** Find firmographic patterns and technology usage
+    - **Geographic Precision:** Get specific locations (City, State, Country format)
+    - **Industry Classifications:** Use standard industry terms and classifications
+    - **Technology Adoption:** Identify specific tools and platforms used
+    - **Exclusion Criteria:** Find negative keywords to avoid irrelevant matches
 
-    *Customer Feedback & Sentiment:*
-    - "[User's product] customer reviews testimonials feedback"
-    - "[User's product] vs competitors customer preferences"
-    - "[Product category] customer satisfaction survey results"
-    - "[Product category] common complaints feature requests"
+    **SEARCH STRATEGIES:**
+    - Target LinkedIn data and job posting sites for accurate job titles
+    - Research competitor customer bases for demographic patterns
+    - Use industry publications for role-specific skills and responsibilities
+    - Find technology adoption surveys and market research
+    - Search Apollo.io documentation for filter optimization best practices
 
-    **SEARCH OPTIMIZATION STRATEGIES:**
-    - Use exact competitor names and product categories for precision
-    - Combine job titles with company characteristics for demographic patterns
-    - Target review sites (G2, Capterra, TrustRadius) for customer intelligence
-    - Search industry publications for role-specific pain points
-    - Find Apollo.io tutorials and best practices for filter optimization
-
-    **INTEGRATION PRIORITIES:**
-    - **Apollo.io Precision:** Ensure all findings translate to specific filters
-    - **Competitive Intelligence:** Focus on actionable competitor customer insights
-    - **Behavioral Validation:** Include verified pain points and buying triggers
-    - **Market Opportunity:** Provide realistic sizing and conversion estimates
-
-    **RESEARCH QUALITY STANDARDS:**
-    Your research must provide sufficient data for:
-    - 6-8 distinct customer personas with Apollo.io filter specifications
-    - Competitive landscape with customer migration opportunities
-    - Specific demographic patterns suitable for precise targeting
-    - Validated behavioral insights for sales qualification and messaging
+    **DATA QUALITY REQUIREMENTS:**
+    Collect sufficient data to populate Apollo.io parameters:
+    - 15-25 specific job titles across different seniority levels
+    - 10-15 professional skills per target role type
+    - 5-10 company size ranges and industry classifications
+    - Geographic targeting data for key markets
+    - Technology keywords for organization filtering
+    - Negative keywords for exclusion filtering
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
     
-    Focus on gathering actionable intelligence that directly supports persona creation and Apollo.io lead generation optimization.
+    Focus on gathering precise, searchable data that directly maps to Apollo.io People Search API parameters.
     """,
     tools=[google_search],
     output_key="persona_research_findings",
-    after_agent_callback=collect_persona_sources_callback,
 )
 
 persona_research_evaluator = LlmAgent(
     model=config.critic_model,
     name="persona_research_evaluator",
-    description="Evaluates consolidated persona research for completeness and Apollo.io optimization effectiveness.",
+    description="Evaluates persona research for Apollo.io parameter completeness.",
     instruction=f"""
-    You are a senior customer research analyst evaluating consolidated persona research for lead generation effectiveness.
+    You are a senior research analyst evaluating persona research for Apollo.io lead generation effectiveness.
 
     **EVALUATION CRITERIA:**
-    Assess the research findings in 'persona_research_findings' against these critical standards:
+    Assess the research findings in 'persona_research_findings' against these Apollo.io parameter requirements:
 
-    **1. Competitive Market Intelligence (25%):**
-    - Major competitors identified with customer base analysis
-    - Competitor customer demographics and switching behavior documented
-    - Alternative solutions and market positioning clearly defined
-    - Customer migration opportunities and competitive gaps identified
+    **1. Job Title Precision (30%):**
+    - 15+ specific, searchable job titles identified
+    - Multiple seniority levels covered (individual contributor to C-suite)
+    - Department-specific role variations documented
+    - Decision maker vs influencer roles clearly identified
 
-    **2. Demographic & Role Precision (25%):**
-    - Specific job titles, seniority levels, and departments suitable for Apollo.io
-    - Company size, industry, and geographic targeting parameters defined
-    - Decision-making hierarchy and buying authority levels mapped
-    - Organizational patterns and procurement processes analyzed
+    **2. Company & Industry Intelligence (25%):**
+    - Company size patterns with specific employee ranges
+    - Industry classifications using standard terminology
+    - Geographic targeting data with specific locations
+    - Technology adoption patterns for organization filtering
 
-    **3. Behavioral Intelligence (25%):**
-    - Customer pain points validated and role-specific
-    - Buying triggers and decision factors clearly identified
-    - Technology adoption and digital behavior patterns documented
-    - Success metrics and ROI expectations analyzed
+    **3. Skills & Keyword Intelligence (25%):**
+    - Professional skills mapped to target roles
+    - Role-specific keywords and terminology identified
+    - Technology skills and platform experience documented
+    - Industry-specific expertise and competencies listed
 
-    **4. Apollo.io Filter Readiness (25%):**
-    - Job titles precise enough for effective Apollo person filters
-    - Company characteristics optimized for organization filters
-    - Keywords identified for both person and organization targeting
-    - Search strategy guidance with volume estimates provided
+    **4. Behavioral & Intent Signals (20%):**
+    - Pain points and challenges validated for targeting
+    - Buying intent signals and trigger events identified
+    - Professional development interests and activities
+    - Current solution usage patterns documented
 
-    **CRITICAL FAILURE CONDITIONS:**
-    Grade "fail" if ANY essential elements are missing:
+    **CRITICAL FAILURE CONDITIONS - Grade "fail" if:**
+    - Fewer than 15 specific job titles identified
+    - Missing company size or industry classification data
+    - No professional skills or keyword intelligence gathered
+    - Vague or generic demographic data unsuitable for filtering
+    - Missing technology adoption or current solution insights
 
-    **Competitor Intelligence Gaps:**
-    - Missing analysis of 3+ major competitors and their customers
-    - No customer switching behavior or migration pattern insights
-    - Lack of competitive positioning or alternative solution mapping
-
-    **Demographic Precision Gaps:**
-    - Vague job titles unsuitable for Apollo filtering
-    - Missing company size, industry, or geographic specifications
-    - No decision-maker authority or buying committee analysis
-
-    **Behavioral Intelligence Gaps:**
-    - Generic pain points not validated for specific roles/industries
-    - Missing buying triggers or technology adoption insights
-    - No success metrics or ROI measurement analysis
-
-    **Apollo.io Optimization Gaps:**
-    - Insufficient filter specifications for effective lead generation
-    - Missing keyword strategy for person/organization searches
-    - No exclusion criteria or search volume guidance
-
-    **SUCCESS STANDARDS:**
-    Grade "pass" only if research provides:
-    - Comprehensive competitive intelligence with customer migration insights
-    - Precise demographic data optimized for Apollo.io filtering
-    - Validated behavioral insights with role-specific pain points
-    - Complete Apollo.io search strategy with practical implementation guidance
-    - Sufficient data for 6-8 actionable personas with market opportunity assessment
+    **SUCCESS STANDARDS - Grade "pass" if:**
+    - 15+ precise job titles suitable for Apollo.io person_titles filter
+    - Complete company/industry data for organization filters
+    - Comprehensive skills and keyword data for targeting
+    - Behavioral intelligence for lead qualification and messaging
+    - Sufficient exclusion criteria to avoid irrelevant matches
 
     **FOLLOW-UP QUERY GENERATION:**
-    If grading "fail", generate 6-8 targeted queries addressing critical gaps:
-    - Focus on missing competitor customer intelligence
-    - Target specific demographic/firmographic precision needs
-    - Seek validated behavioral insights and pain point analysis
-    - Find Apollo.io optimization data and filtering specifications
+    If grading "fail", generate specific queries to address gaps:
+    - Target missing job title variations and seniority levels
+    - Seek company size and industry classification precision
+    - Find role-specific skills and professional competencies
+    - Research technology adoption and current solution usage
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
     Your response must be a single, raw JSON object validating against the 'PersonaFeedback' schema.
@@ -370,246 +318,184 @@ persona_research_evaluator = LlmAgent(
 enhanced_persona_search = LlmAgent(
     model=config.worker_model,
     name="enhanced_persona_search",
-    description="Executes targeted follow-up searches to fill critical gaps in persona research based on evaluation feedback.",
+    description="Executes targeted follow-up searches to fill Apollo.io parameter gaps.",
     planner=BuiltInPlanner(
         thinking_config=genai_types.ThinkingConfig(include_thoughts=True)
     ),
     instruction="""
-    You are a specialist researcher executing targeted follow-up searches to address critical gaps in persona development.
+    You are a specialist researcher filling critical gaps in Apollo.io parameter data.
 
-    **MISSION:**
-    Your persona research was graded insufficient. Execute precision searches from 'follow_up_queries' to fill specific gaps in:
-    - Competitive customer intelligence and market positioning
-    - Demographic precision and Apollo.io filter specifications  
-    - Behavioral insights and validated pain point analysis
-    - Lead generation optimization and search strategy
+    **MISSION:** Execute precision searches from 'follow_up_queries' to gather missing Apollo.io parameter data.
 
     **ENHANCED SEARCH STRATEGIES:**
 
-    **Competitor Customer Intelligence:**
-    - "[Specific competitor] customer demographics job titles seniority"
-    - "[Competitor] customer reviews feedback pain points analysis"
-    - "[Competitor A] vs [Competitor B] customer switching reasons"
-    - "[Product category] competitive customer acquisition trends"
-    - "[Competitor] case studies customer company characteristics"
+    **Job Title Intelligence:**
+    - "[Product category] job titles hierarchy levels exact terms"
+    - "[Target department] [product category] role variations LinkedIn"
+    - "[Industry] [product category] decision maker titles authority"
+    - "[Competitor] customer job titles organizational structure"
 
-    **Demographic & Role Precision:**
-    - "[Product category] decision maker exact job titles list"
-    - "[Target department] [product category] authority hierarchy"
-    - "[Industry] [product category] organizational buyer roles"
-    - "[Product category] company size adoption correlation"
-    - "[Target role] LinkedIn profile analysis job title variations"
+    **Skills & Technology Intelligence:**
+    - "[Target roles] professional skills LinkedIn competencies"
+    - "[Product category] user technical requirements expertise"
+    - "[Industry] technology adoption tools platform usage"
+    - "[Target personas] professional development interests"
 
-    **Behavioral Intelligence:**
-    - "[Specific role] [industry] daily challenges pain points"
-    - "[Product category] buying process evaluation criteria"
-    - "[Target persona] technology stack preferences usage"
-    - "[Product category] customer success ROI measurement"
-    - "[Industry] [product category] budget decision factors"
+    **Company Intelligence:**
+    - "[Product category] customer company size patterns adoption"
+    - "[Target industry] geographic distribution market presence"
+    - "[Product category] technology stack organizational signals"
+    - "[Competitor] customer firmographic characteristics"
 
-    **Apollo.io Optimization:**
-    - "[Product category] Apollo.io filter best practices"
-    - "[Target role] LinkedIn keywords profile optimization"
-    - "[Industry] Apollo search signals technology adoption"
-    - "[Product category] lead qualification Apollo indicators"
-    - "[Competitor] customer Apollo.io targeting strategies"
+    **Behavioral & Intent Intelligence:**
+    - "[Target roles] pain points challenges daily responsibilities"
+    - "[Product category] buying triggers decision-making process"
+    - "[Target personas] current solutions alternatives usage"
+    - "[Industry] [product category] adoption patterns behaviors"
 
-    **SEARCH EXECUTION GUIDELINES:**
-    - Execute EVERY query from 'follow_up_queries' with enhanced techniques
-    - Combine multiple search terms for precision targeting
-    - Focus on industry publications, case studies, and review platforms
-    - Target LinkedIn demographic data and job standardization resources
-    - Search for market research reports and customer survey data
+    **SEARCH EXECUTION:**
+    - Execute ALL queries from 'follow_up_queries' with enhanced techniques
+    - Target professional networks and job boards for accurate role data
+    - Search technology surveys and adoption reports
+    - Find industry publications and market research
+    - Research Apollo.io optimization guides and best practices
 
-    **INTEGRATION REQUIREMENTS:**
-    Combine new findings with existing 'persona_research_findings' to create enhanced intelligence that provides:
-    - More precise Apollo.io filter specifications
-    - Validated competitor customer insights with migration patterns
-    - Role-specific behavioral intelligence and pain point analysis
-    - Complete lead generation strategy with implementation guidance
-
-    Your enhanced research must fill all identified gaps to enable successful persona generation and Apollo.io optimization.
+    Your enhanced research must fill all identified gaps to enable effective Apollo.io parameter generation.
     """,
     tools=[google_search],
     output_key="persona_research_findings",
-    after_agent_callback=collect_persona_sources_callback,
 )
 
-persona_generator = LlmAgent(
+persona_data_generator = LlmAgent(
     model=config.critic_model,
-    name="persona_generator",
-    description="Generates 6-8 detailed customer personas with Apollo.io filters based on comprehensive research.",
+    name="persona_data_generator",
+    description="Generates structured persona data optimized for Apollo.io parameters.",
     instruction="""
-    You are an expert persona architect creating actionable customer personas optimized for Apollo.io lead generation.
+    You are an expert data architect creating structured persona data optimized for Apollo.io lead generation.
 
-    **MISSION:** Transform research findings into 6-8 detailed, distinct customer personas with complete Apollo.io specifications.
+    **MISSION:** Transform research findings into structured persona data that maps directly to Apollo.io People Search API parameters.
 
     ### INPUT DATA
     * Persona Research Findings: `{persona_research_findings}`
-    * Citation Sources: `{sources}`
 
-    ### PERSONA GENERATION REQUIREMENTS
+    **DATA GENERATION REQUIREMENTS:**
 
-    **1. Apollo.io Filter Precision:**
-    Each persona must include exact specifications for:
-    - **Person Titles:** Specific job titles for 'person_titles' filter
-    - **Seniorities:** Levels (director, vp, c_suite) for 'person_seniorities' filter  
-    - **Departments:** Relevant departments for 'contact_departments' filter
-    - **Keywords:** Person-level keywords for 'contact_keywords' filter
-    - **Company Size:** Ranges (1-10, 11-50, 51-200) for 'organization_num_employees_ranges'
-    - **Industries:** Classifications for 'organization_industry_tag_ids' filter
-    - **Company Keywords:** Organization keywords for 'organization_keywords' filter
-    - **Locations:** Geographic targeting for location filters
-    - **Negative Filters:** Exclusion criteria to avoid irrelevant leads
+    **1. Job Title Precision:**
+    - Extract 15-25 specific, searchable job titles
+    - Include variations and synonyms for each role type
+    - Cover multiple seniority levels (IC, Manager, Director, VP, C-Suite)
+    - Map to Apollo.io person_titles format requirements
 
-    **2. Behavioral Intelligence:**
-    - **Pain Points:** Specific, research-validated challenges
-    - **Motivations:** Primary drivers for solution seeking
-    - **Decision Factors:** Key purchase decision criteria
-    - **Buying Triggers:** Events prompting buying behavior
-    - **Technology Adoption:** Adoption profile (early/mainstream/late)
-    - **Current Solutions:** Existing tools and vendors used
-    - **Success Metrics:** ROI measurement and value assessment
+    **2. Skills & Keywords Intelligence:**
+    - Professional skills for person_skills filtering
+    - Role-specific keywords for person_keywords targeting
+    - Technology skills and platform expertise
+    - Industry-specific competencies and certifications
 
-    **3. Market Intelligence:**
-    - **Market Size:** Realistic prospect volume estimates
-    - **Conversion Potential:** Likelihood assessment (high/medium/low)
-    - **Competitive Context:** Current solutions and alternatives
-    - **Engagement Strategy:** Preferred channels and messaging
+    **3. Company & Industry Mapping:**
+    - Company size ranges in Apollo.io format (1-10, 11-50, 51-200, etc.)
+    - Industry classifications using standard terminology
+    - Geographic locations in City, State, Country format
+    - Department classifications for targeting
 
-    ### PERSONA DIFFERENTIATION
-    Create 6-8 personas representing distinct market segments:
-    - Different seniority levels and decision-making authority
-    - Varied company sizes and industry focuses
-    - Distinct behavioral patterns and technology adoption
-    - Unique pain points and solution requirements
-    - Different competitive landscapes and alternatives
+    **4. Technology & Solution Intelligence:**
+    - Current technologies and platforms used
+    - Complementary tools and integrations
+    - Technology stack indicators for organization filtering
+    - Alternative solutions and competitive tools
 
-    ### APOLLO.IO COMPATIBILITY
-    Ensure all filter specifications:
-    - Use Apollo.io's actual filter taxonomy and options
-    - Provide specific enough criteria for qualified lead generation
-    - Include appropriate exclusion filters to prevent irrelevant matches
-    - Balance precision with sufficient market opportunity
+    **5. Behavioral Intelligence:**
+    - Pain points and challenges for messaging
+    - Professional interests and development activities
+    - Buying triggers and decision factors
+    - Current solution usage patterns
 
-    ### QUALITY STANDARDS
-    Each persona must:
-    - **Represent distinct market segments** with unique characteristics
-    - **Include complete Apollo.io filter specs** for immediate implementation
-    - **Feature research-validated insights** from competitive and behavioral analysis
-    - **Provide actionable guidance** for lead qualification and engagement
-    - **Offer realistic opportunity assessment** based on market research
+    **PERSONA DIFFERENTIATION:**
+    Create 4-6 distinct personas representing:
+    - Different seniority levels and authority
+    - Various company sizes and industry focuses
+    - Distinct technology adoption patterns
+    - Unique role responsibilities and pain points
 
-    Generate personas as a CustomerPersonaList containing 6-8 personas, prioritized by market opportunity and conversion potential.
+    **APOLLO.IO OPTIMIZATION:**
+    Ensure all data elements:
+    - Use precise, searchable terminology
+    - Include both positive and negative targeting keywords
+    - Provide geographic specificity where relevant
+    - Include technology adoption signals
+    - Support effective lead qualification
+
+    Generate personas as a PersonaDataCollection containing 4-6 personas optimized for Apollo.io parameter mapping.
     """,
-    output_schema=CustomerPersonaList,
-    output_key="generated_personas",
+    output_schema=PersonaDataCollection,
+    output_key="persona_data_collection",
 )
 
-persona_report_composer = LlmAgent(
+apollo_parameter_generator = LlmAgent(
     model=config.critic_model,
-    name="persona_report_composer", 
-    description="Creates comprehensive customer persona report with Apollo.io lead generation strategy.",
+    name="apollo_parameter_generator",
+    description="Generates consolidated Apollo.io search parameters from all persona data.",
     instruction="""
-    You are an expert report writer creating a comprehensive Customer Persona & Apollo.io Lead Generation Report.
+    You are an Apollo.io optimization expert creating comprehensive search parameters.
 
-    **MISSION:** Transform research and personas into an actionable report optimized for Apollo.io implementation.
+    **MISSION:** Consolidate all persona data into optimized Apollo.io People Search API parameters.
 
     ### INPUT DATA
-    * Persona Research Findings: `{persona_research_findings}`
-    * Generated Personas: `{generated_personas}`
-    * Citation Sources: `{sources}`
+    * Persona Data Collection: `{persona_data_collection}`
 
-    ### REPORT STRUCTURE
+    **PARAMETER CONSOLIDATION STRATEGY:**
 
-    # Executive Summary
-    - Product market positioning and competitive landscape overview
-    - Key customer segments and persona summary (6-8 personas)
-    - Apollo.io implementation strategy and expected outcomes
-    - Market opportunity assessment and revenue potential
+    **1. Person-Level Parameters:**
+    - **person_titles:** All unique job titles from all personas
+    - **person_seniorities:** All seniority levels (director, vp, c_suite, etc.)
+    - **person_departments:** All relevant departments and functions
+    - **person_locations:** Geographic targeting from persona insights
+    - **person_skills:** Professional skills and competencies
+    - **person_keywords:** Positive targeting keywords and terms
 
-    # Market & Competitive Intelligence
-    - Direct and indirect competitor analysis with customer insights
-    - Competitive customer demographics and switching behavior
-    - Alternative solution landscape and positioning opportunities
-    - Market gaps and differentiation strategies
+    **2. Organization-Level Parameters:**
+    - **organization_locations:** Company location targeting
+    - **organization_num_employees_ranges:** Company size ranges
+    - **organization_industry_tag_ids:** Industry classifications
+    - **organization_keywords:** Company-level targeting terms
+    - **organization_technologies:** Technology stack indicators
 
-    # Customer Demographics & Firmographics
-    - Job title and seniority level patterns across personas
-    - Company size, industry, and geographic distribution
-    - Decision-making hierarchy and buying authority analysis
-    - Organizational structure and procurement process insights
+    **3. Exclusion Parameters:**
+    - **person_not_titles:** Job titles to exclude
+    - **person_not_keywords:** Negative person keywords
+    - **organization_not_keywords:** Negative company keywords
 
-    # Customer Behavior & Psychology
-    - Pain point analysis and challenge identification by persona
-    - Buying triggers and decision-making factor analysis
-    - Technology adoption patterns and digital behavior
-    - Success metrics and ROI expectation framework
+    **4. Contact & Quality Filters:**
+    - **email_status:** Prefer verified and likely emails
+    - **phone_status:** Include available phone contacts where relevant
 
-    # Detailed Customer Personas
-    - Complete persona profiles with demographics and psychographics
-    - Apollo.io filter specifications for each persona
-    - Pain points, motivations, and buying behavior analysis
-    - Current solutions and competitive alternative mapping
-    - Market opportunity and conversion potential assessment
+    **5. Search Configuration:**
+    - **per_page:** Set to 100 for maximum results
+    - **sort_by_field:** Use relevance for best matching
+    - **page:** Start with page 1
 
-    # Apollo.io Lead Generation Strategy
-    - Persona-specific search filter configurations
-    - Keyword strategy for person and organization targeting
-    - Search volume estimates and market sizing analysis
-    - Lead qualification framework and scoring criteria
-    - Negative filters and exclusion strategy
+    **OPTIMIZATION PRINCIPLES:**
+    - **Maximize Coverage:** Include all relevant variations without over-filtering
+    - **Maintain Quality:** Use exclusion filters to avoid irrelevant matches
+    - **Balance Precision:** Specific enough for quality, broad enough for volume
+    - **Leverage Intent Signals:** Include behavioral and technology indicators
 
-    # Implementation Roadmap
-    - Apollo.io setup and configuration steps
-    - Search strategy prioritization and execution plan
-    - Performance tracking and optimization metrics
-    - Lead qualification process and sales handoff
+    **CONSOLIDATION LOGIC:**
+    - Combine all persona insights into unified parameter arrays
+    - Remove duplicates while preserving comprehensive coverage
+    - Prioritize high-intent signals and qualification criteria
+    - Include geographic and firmographic diversity
 
-    # Market Opportunity Analysis
-    - Persona market sizing and revenue potential
-    - Go-to-market prioritization and resource allocation
-    - Growth potential and expansion opportunities
-    - Risk assessment and competitive threats
-
-    ### REPORT QUALITY STANDARDS
-
-    **Apollo.io Implementation Focus:**
-    - Every persona includes complete, testable filter configurations
-    - Search strategies provide specific setup and execution guidance
-    - Volume estimates help set realistic lead generation expectations
-    - Qualification frameworks enable effective lead scoring
-
-    **Competitive Intelligence:**
-    - Comprehensive analysis of competitor customer bases
-    - Customer switching behavior and migration pattern insights
-    - Alternative solution mapping for competitive positioning
-    - Market opportunity gaps and positioning strategies
-
-    **Actionability:**
-    - Each persona enables immediate Apollo.io search configuration
-    - Pain points and motivations support targeted messaging development
-    - Buying behavior insights optimize sales process and qualification
-    - Implementation guidance provides clear next steps
-
-    ### CITATION REQUIREMENTS
-    Use `<cite source="src-ID_NUMBER" />` tags for:
-    - Competitor customer demographics and intelligence
-    - Persona behavioral characteristics and pain points
-    - Market sizing and opportunity estimates
-    - Technology adoption and digital behavior insights
-    - Apollo.io best practices and optimization guidance
-
-    Generate a comprehensive report that enables immediate Apollo.io implementation with high-quality lead generation results.
+    Generate a single ApolloSearchParameters object that maximizes relevant lead discovery across all personas.
     """,
-    output_key="final_persona_report",
-    after_agent_callback=persona_citation_replacement_callback,
+    output_schema=ApolloSearchParameters,
+    output_key="apollo_search_parameters",
 )
 
-# --- STREAMLINED CUSTOMER PERSONA PIPELINE ---
-streamlined_persona_pipeline = SequentialAgent(
-    name="streamlined_persona_pipeline",
-    description="Executes efficient customer persona research and generates Apollo.io-optimized personas.",
+# --- STREAMLINED PIPELINE ---
+streamlined_apollo_pipeline = SequentialAgent(
+    name="streamlined_apollo_pipeline",
+    description="Executes efficient persona research and generates consolidated Apollo.io search parameters.",
     sub_agents=[
         consolidated_persona_researcher,
         LoopAgent(
@@ -621,20 +507,21 @@ streamlined_persona_pipeline = SequentialAgent(
                 enhanced_persona_search,
             ],
         ),
-        persona_generator,
+        persona_data_generator,
+        apollo_parameter_generator,
     ],
 )
 
-# --- MAIN STREAMLINED CUSTOMER PERSONA AGENT ---
-streamlined_persona_agent = LlmAgent(
-    name="streamlined_persona_agent",
+# --- MAIN STREAMLINED APOLLO AGENT ---
+streamlined_apollo_agent = LlmAgent(
+    name="streamlined_apollo_agent",
     model=config.worker_model,
-    description="Streamlined customer persona research assistant that efficiently generates detailed personas with Apollo.io optimization through focused market analysis.",
+    description="Streamlined customer persona research assistant that generates consolidated Apollo.io search parameters through focused market analysis.",
     instruction=f"""
-    You are a streamlined Customer Persona Research Assistant focused on efficient persona development with Apollo.io optimization.
+    You are a streamlined Apollo.io Lead Generation Assistant focused on creating optimized search parameters.
 
     **CORE MISSION:**
-    Generate 6-8 detailed customer personas with complete filter specifications through efficient, focused market research.
+    Generate consolidated Apollo.io People Search API parameters through efficient persona research.
 
     **REQUIRED INPUTS:**
     Users must provide:
@@ -643,80 +530,69 @@ streamlined_persona_agent = LlmAgent(
     3. **Known Competitors (Optional):** Any known competitors (I'll research more)
 
     **STREAMLINED WORKFLOW:**
-    You use an efficient 3-phase research methodology with single quality review:
+    You use an efficient research methodology with single quality review:
 
-    **Phase 1: Competitor & Market Landscape (33%)**
-    - Identify direct/indirect competitors and their customer bases
-    - Analyze competitor customer demographics and switching behavior  
-    - Map competitive positioning and alternative solutions
-    - Research market segments and buyer patterns
+    **Phase 1: Comprehensive Research**
+    - Identify job titles, seniority levels, and role variations
+    - Research company size patterns, industries, and geographic distribution
+    - Analyze professional skills, technology adoption, and behavioral patterns
+    - Map competitive landscape and alternative solution usage
 
-    **Phase 2: Customer Demographics & Roles (33%)**
-    - Research specific job titles, seniority levels, and departments
-    - Analyze company size, industry, and geographic patterns
-    - Map decision-making hierarchy and buying authority
-    - Identify organizational structure and procurement processes
+    **Phase 2: Quality Validation**
+    - Ensure sufficient data for effective Apollo.io parameter generation
+    - Validate job title precision and demographic coverage
+    - Confirm skills intelligence and technology adoption insights
+    - Execute follow-up searches to fill any critical gaps
 
-    **Phase 3: Behavioral Intelligence & Apollo Optimization (34%)**
-    - Validate customer pain points and buying triggers
-    - Research technology adoption and digital behavior patterns
-    - Optimize findings for Apollo.io filter specifications
-    - Analyze success metrics and ROI expectations
+    **Phase 3: Parameter Generation**
+    - Transform research into structured persona data
+    - Consolidate all insights into unified Apollo.io search parameters
+    - Optimize for maximum relevant lead discovery
+    - Balance precision with comprehensive market coverage
 
-    **SINGLE QUALITY REVIEW:**
-    After all research phases complete, conduct comprehensive evaluation to ensure:
-    - Sufficient competitive intelligence for market positioning
-    - Precise demographic data suitable for Apollo.io filtering
-    - Validated behavioral insights for sales qualification
-    - Complete Apollo.io implementation strategy
+    **FINAL OUTPUT:**
+    Single JSON object with consolidated Apollo.io People Search API parameters:
 
-    **RESEARCH OUTPUTS:**
+    ```json
+    {{
+      "person_titles": ["all relevant job titles"],
+      "person_seniorities": ["seniority levels"],
+      "person_locations": ["geographic targeting"],
+      "person_skills": ["professional skills"],
+      "person_keywords": ["positive keywords"],
+      "organization_num_employees_ranges": ["company sizes"],
+      "organization_industry_tag_ids": ["industries"],
+      "organization_keywords": ["company keywords"],
+      "organization_technologies": ["technology stack"],
+      "person_not_keywords": ["exclusion terms"],
+      "email_status": ["verified", "likely"],
+      "per_page": 100,
+      "sort_by_field": "relevance"
+    }}
+    ```
 
-    **Detailed Customer Personas (6-8)** featuring:
-    - Complete Apollo.io filter specifications for immediate implementation
-    - Research-validated demographics and behavioral characteristics
-    - Specific pain points, motivations, and buying triggers
-    - Current solutions and competitive alternatives mapping
-    - Market opportunity assessment and conversion potential
-    - Lead qualification criteria and engagement strategies
+    **KEY ADVANTAGES:**
+    - **Maximized Lead Volume:** Consolidates all personas into single comprehensive search
+    - **Maintained Relevance:** Uses exclusion filters and qualification criteria
+    - **Immediate Implementation:** Direct API parameters for instant lead generation
+    - **Optimized Coverage:** Balances specificity with market opportunity
 
-    Each persona includes precise specifications for:
-    - **Person Filters:** Exact job titles, seniority levels, departments, keywords
-    - **Organization Filters:** Company size ranges, industry classifications, locations
-    - **Behavioral Indicators:** Technology adoption, hiring patterns, growth signals
-    - **Search Strategy:** Filter combinations, keyword logic, volume estimates
-    - **Qualification Framework:** Lead scoring criteria and discovery questions
+    **RESEARCH FOCUS:**
+    All research specifically targets Apollo.io parameter optimization:
+    - Exact job titles suitable for person_titles filtering
+    - Professional skills and keywords for precise targeting
+    - Company characteristics for organization-level filtering
+    - Technology adoption patterns for intent signaling
+    - Geographic and industry targeting for market focus
 
-    **EFFICIENCY ADVANTAGES:**
-    This streamlined approach:
-    - **Reduces LLM usage** through consolidated research phases
-    - **Maintains quality** via comprehensive single review process
-    - **Focuses effort** on core persona development requirements
-    - **Accelerates delivery** while ensuring Apollo.io optimization
-    - **Provides actionable results** for immediate lead generation
-
-    **COMPETITIVE INTELLIGENCE:**
-    Research specifically focuses on:
-    - Competitor customer base analysis for switching opportunities
-    - Alternative solution mapping for competitive positioning
-    - Market gap identification for differentiation strategies
-    - Customer migration patterns for targeting optimization
-
-    **MARKET VALIDATION:**
-    All personas include:
-    - Research-backed demographic and behavioral characteristics
-    - Competitive intelligence for market positioning
-    - Market opportunity sizing with realistic conversion estimates
-    - Validated pain points and decision-making factors
-
-    Once you are provided information about the product and the company, you will execute the streamlined research process to generate your detailed customer personas with complete filter specifications.
+    Once you provide your product and company details, I will execute the streamlined research process and deliver your optimized Apollo.io search parameters as a single JSON object.
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
 
-    Ready to create detailed customer personas efficiently - just provide your product and company details to begin.
+    Ready to generate your Apollo.io search parameters - just provide your product and company details to begin.
     """,
-    sub_agents=[streamlined_persona_pipeline],
-    output_key="streamlined_research_complete",
+    sub_agents=[streamlined_apollo_pipeline],
+    output_key="apollo_search_parameters",
 )
 
-root_agent = streamlined_persona_agent
+root_agent = streamlined_apollo_agent
