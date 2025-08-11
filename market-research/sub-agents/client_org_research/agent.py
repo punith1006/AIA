@@ -100,26 +100,47 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
 def citation_replacement_callback(
     callback_context: CallbackContext,
 ) -> genai_types.Content:
-    """Replaces citation tags in a report with Markdown-formatted links."""
+    """Replaces citation tags in a report with Wikipedia-style clickable numbered references."""
     final_report = callback_context.state.get("final_cited_report", "")
     sources = callback_context.state.get("sources", {})
 
+    # Assign each short_id a numeric index
+    short_id_to_index = {}
+    for idx, short_id in enumerate(sorted(sources.keys()), start=1):
+        short_id_to_index[short_id] = idx
+
+    # Replace <cite> tags with clickable reference links
     def tag_replacer(match: re.Match) -> str:
         short_id = match.group(1)
-        if not (source_info := sources.get(short_id)):
+        if short_id not in short_id_to_index:
             logging.warning(f"Invalid citation tag found and removed: {match.group(0)}")
             return ""
-        display_text = source_info.get("title", source_info.get("domain", short_id))
-        return f" [{display_text}]({source_info['url']})"
+        index = short_id_to_index[short_id]
+        return f"[<a href=\"#ref{index}\">{index}</a>]"
 
     processed_report = re.sub(
-        r'<cite\s+source\s*=\s*["\']?\s*(src-\d+)\s*["\']?\s*/>',
+        r'<cite\s+source\s*=\s*["\']?\s*(src-\d+)\s*["\']?\s*/?>',
         tag_replacer,
         final_report,
     )
     processed_report = re.sub(r"\s+([.,;:])", r"\1", processed_report)
+
+    # Build a Wikipedia-style References section with anchors
+    references = "\n\n## References\n"
+    for short_id, idx in sorted(short_id_to_index.items(), key=lambda x: x[1]):
+        source_info = sources[short_id]
+        references += (
+            f"<p id=\"ref{idx}\">[{idx}] "
+            f"<a href=\"{source_info['url']}\">{source_info['title']}</a> "
+            f"({source_info['domain']})</p>\n"
+        )
+
+    processed_report += references
+
     callback_context.state["final_report_with_citations"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
+
+
 
 
 # --- Custom Agent for Loop Control ---
