@@ -493,8 +493,8 @@ apollo_parameter_generator = LlmAgent(
 )
 
 # --- STREAMLINED PIPELINE ---
-streamlined_apollo_pipeline = SequentialAgent(
-    name="streamlined_apollo_pipeline",
+prospect_research_pipeline = SequentialAgent(
+    name="prospect_research_pipeline",
     description="Executes efficient persona research and generates consolidated Apollo.io search parameters.",
     sub_agents=[
         consolidated_persona_researcher,
@@ -513,8 +513,8 @@ streamlined_apollo_pipeline = SequentialAgent(
 )
 
 # --- MAIN STREAMLINED APOLLO AGENT ---
-streamlined_apollo_agent = LlmAgent(
-    name="streamlined_apollo_agent",
+prospect_researcher = LlmAgent(
+    name="prospect_researcher",
     model=config.worker_model,
     description="Streamlined customer persona research assistant that generates consolidated Apollo.io search parameters through focused market analysis.",
     instruction=f"""
@@ -591,8 +591,8 @@ streamlined_apollo_agent = LlmAgent(
 
     Ready to generate your Apollo.io search parameters - just provide your product and company details to begin.
     """,
-    sub_agents=[streamlined_apollo_pipeline],
+    sub_agents=[prospect_research_pipeline],
     output_key="apollo_search_parameters",
 )
 
-root_agent = streamlined_apollo_agent
+root_agent = prospect_researcher
