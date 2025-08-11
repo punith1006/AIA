@@ -97,27 +97,44 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
     callback_context.state["sources"] = sources
 
 
-def citation_replacement_callback(
-    callback_context: CallbackContext,
-) -> genai_types.Content:
-    """Replaces citation tags in a report with Markdown-formatted links."""
+def citation_replacement_callback(callback_context: CallbackContext) -> genai_types.Content:
+    """Replaces citation tags in a report with Markdown-formatted inline links and a reference list."""
     final_report = callback_context.state.get("final_cited_report", "")
     sources = callback_context.state.get("sources", {})
+    reference_order = []
+    reference_map = {}
 
     def tag_replacer(match: re.Match) -> str:
         short_id = match.group(1)
-        if not (source_info := sources.get(short_id)):
+        if short_id not in sources:
             logging.warning(f"Invalid citation tag found and removed: {match.group(0)}")
             return ""
-        display_text = source_info.get("title", source_info.get("domain", short_id))
-        return f" [{display_text}]({source_info['url']})"
+        
+        if short_id not in reference_map:
+            reference_map[short_id] = len(reference_order) + 1
+            reference_order.append(short_id)
+        
+        source_info = sources[short_id]
+        ref_number = reference_map[short_id]
+        display_text = source_info.get("title") or source_info.get("domain") or f"Source {ref_number}"
+        
+        # Inline link as a superscript number like Wikipedia
+        return f"[^{ref_number}]"
 
     processed_report = re.sub(
-        r'<cite\s+source\s*=\s*["\']?\s*(src-\d+)\s*["\']?\s*/>',
+        r'<cite\s+source\s*=\s*["\']?\s*(src-\d+)\s*["\']?\s*/?>',
         tag_replacer,
         final_report,
     )
-    processed_report = re.sub(r"\s+([.,;:])", r"\1", processed_report)
+
+    # Append References section
+    if reference_order:
+        references_md = "\n\n## References\n"
+        for short_id in reference_order:
+            src = sources[short_id]
+            references_md += f"{reference_map[short_id]}. [{src.get('title') or src.get('domain')}]({src['url']})\n"
+        processed_report += references_md
+
     callback_context.state["final_report_with_citations"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
 
@@ -132,17 +149,41 @@ class SalesEscalationChecker(BaseAgent):
     async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
+        # Get evaluation result from session state
         evaluation_result = ctx.session.state.get("sales_evaluation")
-        if evaluation_result and evaluation_result.get("grade") == "pass":
+        
+        if evaluation_result:
+            # Check if it's a Pydantic model instance
+            if hasattr(evaluation_result, 'grade'):
+                grade = evaluation_result.grade
+            # Check if it's a dictionary
+            elif isinstance(evaluation_result, dict):
+                grade = evaluation_result.get("grade")
+            else:
+                grade = None
+                logging.warning(f"[{self.name}] Unexpected evaluation result format: {type(evaluation_result)}")
+        else:
+            grade = None
+            
+        if grade == "pass":
             logging.info(
                 f"[{self.name}] Sales intelligence evaluation passed. Escalating to stop loop."
             )
-            yield Event(author=self.name, actions=EventActions(escalate=True))
+            # Yield an event that escalates to end the loop
+            yield Event(
+                author=self.name, 
+                text="Sales intelligence research meets all quality standards. Proceeding to report generation.",
+                actions=EventActions(escalate=True)
+            )
         else:
             logging.info(
-                f"[{self.name}] Sales intelligence evaluation failed or not found. Loop will continue."
+                f"[{self.name}] Sales intelligence evaluation failed or not found (grade: {grade}). Loop will continue with follow-up research."
             )
-            yield Event(author=self.name)
+            # Don't escalate - let the loop continue
+            yield Event(
+                author=self.name,
+                text="Sales intelligence needs additional research. Continuing with enhanced search."
+            )
 
 
 # --- SALES INTELLIGENCE AGENT DEFINITIONS ---
@@ -217,6 +258,7 @@ sales_plan_generator = LlmAgent(
     
     Focus on creating plans that generate actionable sales intelligence for winning deals against competitive alternatives.
     """,
+    output_key="research_plan",
     tools=[google_search],
 )
 
@@ -526,8 +568,8 @@ sales_intelligence_evaluator = LlmAgent(
     Your response must be a single, raw JSON object validating against the 'SalesFeedback' schema.
     """,
     output_schema=SalesFeedback,
-    disallow_transfer_to_parent=True,
-    disallow_transfer_to_peers=True,
+    disallow_transfer_to_parent=False,
+    disallow_transfer_to_peers=False,
     output_key="sales_evaluation",
 )
 
@@ -618,7 +660,7 @@ sales_intelligence_report_composer = LlmAgent(
 
     ---
     ### INPUT DATA SOURCES
-    * Research Plan: `{sales_research_plan}`
+    * Research Plan: `{research_plan}`
     * Sales Intelligence Findings: `{sales_intelligence_findings}`
     * Citation Sources: `{sources}`
     * Report Structure: `{sales_report_sections}`
@@ -786,7 +828,7 @@ sales_intelligence_agent = LlmAgent(
     - **Sales Strategy & Positioning:** Budget cycles, buying patterns, product-market fit, messaging frameworks
 
     **2. Plan Customization:**
-    Collaborate with user to refine the research focus based on:
+    Based on the product and target organization information provided, refine the research focus based on:
     - **Competitive Priorities:** Which existing vendors/solutions to focus on
     - **Stakeholder Focus:** Which roles and departments to prioritize
     - **Sales Objectives:** Deal timeline, revenue targets, strategic importance

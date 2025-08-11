@@ -97,27 +97,44 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
     callback_context.state["sources"] = sources
 
 
-def citation_replacement_callback(
-    callback_context: CallbackContext,
-) -> genai_types.Content:
-    """Replaces citation tags in a report with Markdown-formatted links."""
+def citation_replacement_callback(callback_context: CallbackContext) -> genai_types.Content:
+    """Replaces <cite> tags with markdown footnotes and adds a References section."""
     final_report = callback_context.state.get("final_cited_report", "")
     sources = callback_context.state.get("sources", {})
+    reference_order = []
+    reference_map = {}
 
     def tag_replacer(match: re.Match) -> str:
         short_id = match.group(1)
-        if not (source_info := sources.get(short_id)):
-            logging.warning(f"Invalid citation tag found and removed: {match.group(0)}")
+        if short_id not in sources:
+            logging.warning(f"Invalid citation tag found: {match.group(0)}")
             return ""
-        display_text = source_info.get("title", source_info.get("domain", short_id))
-        return f" [{display_text}]({source_info['url']})"
+        if short_id not in reference_map:
+            reference_map[short_id] = len(reference_order) + 1
+            reference_order.append(short_id)
+        return f"[{reference_map[short_id]}]"
 
+    # Replace citation tags with numbers
     processed_report = re.sub(
-        r'<cite\s+source\s*=\s*["\']?\s*(src-\d+)\s*["\']?\s*/>',
+        r'<cite\s+source\s*=\s*["\']?(src-\d+)["\']?\s*/?>',
         tag_replacer,
         final_report,
     )
-    processed_report = re.sub(r"\s+([.,;:])", r"\1", processed_report)
+
+    # If no citations found but sources exist, include them anyway
+    if not reference_order and sources:
+        reference_order = list(sources.keys())
+        reference_map = {sid: idx + 1 for idx, sid in enumerate(reference_order)}
+
+    # Append References section
+    if reference_order:
+        references_md = "\n\n## References\n"
+        for short_id in reference_order:
+            src = sources[short_id]
+            title = src.get("title") or src.get("domain") or "Untitled"
+            references_md += f"{reference_map[short_id]}. [{title}]({src['url']})\n"
+        processed_report += references_md
+
     callback_context.state["final_report_with_citations"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
 
@@ -217,6 +234,7 @@ sales_plan_generator = LlmAgent(
     
     Focus on creating plans that generate actionable sales intelligence for winning deals against competitive alternatives.
     """,
+    output_key="research_plan",
     tools=[google_search],
 )
 
@@ -618,7 +636,7 @@ sales_intelligence_report_composer = LlmAgent(
 
     ---
     ### INPUT DATA SOURCES
-    * Research Plan: `{sales_research_plan}`
+    * Research Plan: `{research_plan}`
     * Sales Intelligence Findings: `{sales_intelligence_findings}`
     * Citation Sources: `{sources}`
     * Report Structure: `{sales_report_sections}`
@@ -700,6 +718,9 @@ sales_intelligence_report_composer = LlmAgent(
     - Timing indicators, trigger events, and opportunity signals
     - Specific pain points, challenges, and strategic initiatives
     - Technology stack information and vendor relationships
+    - **Citation Format:** You MUST add `<cite source="src-ID_NUMBER" />` immediately after EVERY fact, statistic, company name, or claim that is supported by a source in `{sources}`.
+    - Use the `src-ID` exactly as provided in `{sources}`. Do NOT invent IDs.
+    - Failure to include `<cite>` tags will be considered an incomplete report.
 
     ---
     ### COMPETITIVE POSITIONING EMPHASIS
@@ -786,7 +807,7 @@ sales_intelligence_agent = LlmAgent(
     - **Sales Strategy & Positioning:** Budget cycles, buying patterns, product-market fit, messaging frameworks
 
     **2. Plan Customization:**
-    Collaborate with user to refine the research focus based on:
+    Based on the product and target organization information provided, refine the research focus based on:
     - **Competitive Priorities:** Which existing vendors/solutions to focus on
     - **Stakeholder Focus:** Which roles and departments to prioritize
     - **Sales Objectives:** Deal timeline, revenue targets, strategic importance
