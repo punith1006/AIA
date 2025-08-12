@@ -43,12 +43,18 @@ class MarketFeedback(BaseModel):
 def collect_research_sources_callback(callback_context: CallbackContext) -> None:
     """Collects and organizes web-based research sources and their supported claims from agent events."""
     session = callback_context._invocation_context.session
-    url_to_short_id = callback_context.state.get("url_to_short_id", {})
-    sources = callback_context.state.get("sources", {})
-    id_counter = len(url_to_short_id) + 1
+    url_to_citation_id = callback_context.state.get("url_to_citation_id", {})
+    citations = callback_context.state.get("citations", {})
+    citation_counter = len(url_to_citation_id) + 1
+    
+    logging.info(f"[collect_research_sources_callback] Processing {len(session.events)} events")
+    
     for event in session.events:
         if not (event.grounding_metadata and event.grounding_metadata.grounding_chunks):
             continue
+        
+        logging.info(f"[collect_research_sources_callback] Found {len(event.grounding_metadata.grounding_chunks)} grounding chunks")
+        
         chunks_info = {}
         for idx, chunk in enumerate(event.grounding_metadata.grounding_chunks):
             if not chunk.web:
@@ -59,60 +65,103 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
                 if chunk.web.title != chunk.web.domain
                 else chunk.web.domain
             )
-            if url not in url_to_short_id:
-                short_id = f"src-{id_counter}"
-                url_to_short_id[url] = short_id
-                sources[short_id] = {
-                    "short_id": short_id,
+            if url not in url_to_citation_id:
+                citation_id = citation_counter
+                url_to_citation_id[url] = citation_id
+                citations[citation_id] = {
+                    "id": citation_id,
                     "title": title,
                     "url": url,
                     "domain": chunk.web.domain,
                     "supported_claims": [],
                 }
-                id_counter += 1
-            chunks_info[idx] = url_to_short_id[url]
+                citation_counter += 1
+                logging.info(f"[collect_research_sources_callback] Added new citation {citation_id}: {title}")
+            chunks_info[idx] = url_to_citation_id[url]
+        
         if event.grounding_metadata.grounding_supports:
             for support in event.grounding_metadata.grounding_supports:
                 confidence_scores = support.confidence_scores or []
                 chunk_indices = support.grounding_chunk_indices or []
                 for i, chunk_idx in enumerate(chunk_indices):
                     if chunk_idx in chunks_info:
-                        short_id = chunks_info[chunk_idx]
+                        citation_id = chunks_info[chunk_idx]
                         confidence = (
                             confidence_scores[i] if i < len(confidence_scores) else 0.5
                         )
                         text_segment = support.segment.text if support.segment else ""
-                        sources[short_id]["supported_claims"].append(
+                        citations[citation_id]["supported_claims"].append(
                             {
                                 "text_segment": text_segment,
                                 "confidence": confidence,
                             }
                         )
-    callback_context.state["url_to_short_id"] = url_to_short_id
-    callback_context.state["sources"] = sources
+    
+    callback_context.state["url_to_citation_id"] = url_to_citation_id
+    callback_context.state["citations"] = citations
+    logging.info(f"[collect_research_sources_callback] Total citations collected: {len(citations)}")
 
-def citation_replacement_callback(callback_context: CallbackContext) -> genai_types.Content:
-    """Replaces citation tags in a report with Markdown-formatted links."""
+def wikipedia_citation_callback(callback_context: CallbackContext) -> genai_types.Content:
+    """Replaces citation tags with Wikipedia-style numbered citations and creates references section.
+    Now always produces output, even if no citations are found.
+    """
     final_report = callback_context.state.get("final_cited_report", "")
-    sources = callback_context.state.get("sources", {})
+    citations = callback_context.state.get("citations", {})
 
-    def tag_replacer(match: re.Match) -> str:
-        short_id = match.group(1)
-        if not (source_info := sources.get(short_id)):
-            logging.warning(f"Invalid citation tag found and removed: {match.group(0)}")
+    logging.info(f"[wikipedia_citation_callback] Processing report with {len(citations)} available citations")
+    logging.info(f"[wikipedia_citation_callback] Initial report length: {len(final_report)} characters")
+
+    # Ensure we have something to work with
+    if not final_report.strip():
+        logging.warning("[wikipedia_citation_callback] No final_cited_report found — starting with empty report text.")
+        final_report = ""
+
+    used_citations = set()
+
+    def citation_replacer(match: re.Match) -> str:
+        source_id = match.group(1)
+        try:
+            citation_id = int(source_id.replace("src-", ""))
+            if citation_id in citations:
+                used_citations.add(citation_id)
+                logging.info(f"[wikipedia_citation_callback] Converting citation {citation_id}")
+                return f'<a href="#ref{citation_id}">[{citation_id}]</a>'
+            else:
+                logging.warning(f"[wikipedia_citation_callback] Citation ID {citation_id} not found in citations dict.")
+                return ""
+        except (ValueError, KeyError):
+            logging.warning(f"[wikipedia_citation_callback] Invalid citation tag found and removed: {match.group(0)}")
             return ""
-        display_text = source_info.get("title", source_info.get("domain", short_id))
-        return f" [{display_text}]({source_info['url']})"
 
+    # Detect all <cite> tags in the report
+    citation_matches = re.findall(r'<cite\s+source\s*=\s*["\']?\s*(src-\d+)\s*["\']?\s*/>', final_report)
+    logging.info(f"[wikipedia_citation_callback] Found {len(citation_matches)} citation tags: {citation_matches}")
+
+    # Replace <cite> tags
     processed_report = re.sub(
         r'<cite\s+source\s*=\s*["\']?\s*(src-\d+)\s*["\']?\s*/>',
-        tag_replacer,
+        citation_replacer,
         final_report,
     )
-    processed_report = re.sub(r"\s+([.,;:])", r"\1", processed_report)
-    callback_context.state["final_report_with_citations"] = processed_report
-    return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
 
+    # Tidy punctuation spacing
+    processed_report = re.sub(r"\s+([.,;:])", r"\1", processed_report)
+
+    # Append references section if citations were used
+    if used_citations:
+        logging.info(f"[wikipedia_citation_callback] Adding {len(used_citations)} references")
+        processed_report += "\n\n## References\n\n"
+        for citation_id in sorted(used_citations):
+            citation = citations[citation_id]
+            processed_report += f'<a name="ref{citation_id}"></a>[{citation_id}] [{citation["title"]}]({citation["url"]})\n\n'
+    else:
+        logging.warning("[wikipedia_citation_callback] No citations used — returning uncited report.")
+
+    # Always store something in state
+    callback_context.state["final_report_with_citations"] = processed_report
+
+    return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
+    
 # --- Custom Agent for Loop Control ---
 class EscalationChecker(BaseAgent):
     """Checks research evaluation and escalates to stop the loop if grade is 'pass'."""
@@ -137,6 +186,8 @@ market_plan_generator = LlmAgent(
     description="Generates comprehensive market research plans focused on market context, sizing, and analysis.",
     instruction=f"""
     You are an expert market research strategist specializing in market context and sizing analysis.
+    
+    **CRITICAL INSTRUCTION: DO NOT ASK FOR USER APPROVAL OR REFINEMENTS. Generate the complete plan and return it immediately for automatic execution.**
     
     Your task is to create a systematic research plan with distinct phases to investigate a market for a given product, including:
     - Market context and definition
@@ -188,8 +239,10 @@ market_plan_generator = LlmAgent(
     **TOOL USE:**
     Use Google Search when needed to verify market definitions or find data sources, but focus on specifying research goals rather than performing search yourself.
     
+    **OUTPUT REQUIREMENT:**
+    Provide the complete research plan without asking for approval, refinements, or user input. The plan will be automatically executed by the research pipeline.
+    
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
-    Generate a detailed market research plan with the structure above.
     """,
     tools=[google_search],
 )
@@ -242,7 +295,7 @@ market_section_planner = LlmAgent(
     - Data gaps and uncertainty considerations
     
     Ensure the outline is comprehensive but allow sections to be omitted if no information is found.
-    Do not include a separate References section - citations will be inline.
+    Citations will be handled automatically with Wikipedia-style numbered references.
     """,
     output_key="report_sections",
 )
@@ -410,8 +463,7 @@ enhanced_market_search = LlmAgent(
 market_report_composer = LlmAgent(
     model=config.critic_model,
     name="market_report_composer",
-    include_contents="none",
-    description="Composes comprehensive market analysis reports following the standardized format with proper citations.",
+    description="Composes comprehensive market analysis reports following the standardized format with Wikipedia-style citations.",
     instruction="""
     You are an expert market research report writer specializing in market analysis and strategic insights.
     
@@ -419,9 +471,8 @@ market_report_composer = LlmAgent(
     
     ---
     ### INPUT DATA SOURCES
-    * Research Plan: `{research_plan}`
     * Research Findings: `{market_research_findings}`
-    * Citation Sources: `{sources}`
+    * Citation Sources: `{citations}`
     * Report Structure: `{report_sections}`
     
     ---
@@ -452,12 +503,21 @@ market_report_composer = LlmAgent(
     - Conclusions: Recommendations for product market strategy.
     
     ---
-    ### CITATION REQUIREMENTS
+    ### CITATION REQUIREMENTS - CRITICAL
+    **MANDATORY:** You MUST include citations for all factual claims, statistics, and data points.
+    
     **Citation Format:** Use ONLY `<cite source="src-ID_NUMBER" />` tags immediately after factual claims.
-    - Cite all market size figures and forecasts.
-    - Cite competitor statistics and market share data.
-    - Cite industry trends, regulatory facts, and growth rates.
-    - Do NOT include a separate References section; all citations must be inline.
+    - Cite all market size figures and forecasts: "The market is valued at $X billion <cite source="src-1" />"
+    - Cite competitor statistics and market share data: "Company Y holds X% market share <cite source="src-2" />"
+    - Cite industry trends, regulatory facts, and growth rates: "Growth rate is projected at X% CAGR <cite source="src-3" />"
+    - Citations will be automatically converted to Wikipedia-style numbered references with a References section at the end.
+    
+    **CITATION EXAMPLES:**
+    - "The global AI market reached $136.6 billion in 2022 <cite source="src-1" /> and is expected to grow at 37.3% CAGR <cite source="src-2" />."
+    - "Microsoft leads with 32% market share <cite source="src-3" />, followed by Google at 21% <cite source="src-4" />."
+    - "Regulatory frameworks like GDPR impact adoption <cite source="src-5" />."
+    
+    **YOU MUST USE CITATIONS** - Every factual statement needs a citation tag. This is mandatory for the Wikipedia-style reference system to work.
     
     ---
     ### FINAL QUALITY CHECKS
@@ -466,11 +526,12 @@ market_report_composer = LlmAgent(
     - Confirm balance between opportunities and challenges.
     - Ensure recent information is highlighted and cited.
     - Maintain professional, objective tone throughout.
+    - **VERIFY**: Every factual claim has a `<cite source="src-X" />` tag.
     
-    Generate a complete Market Analysis Report to inform strategic decision-making.
+    Generate a complete Market Analysis Report with comprehensive citations to inform strategic decision-making.
     """,
     output_key="final_cited_report",
-    after_agent_callback=citation_replacement_callback,
+    after_agent_callback=wikipedia_citation_callback,
 )
 
 # --- Market Research Pipeline and Main Agent ---
@@ -496,24 +557,24 @@ market_research_pipeline = SequentialAgent(
 market_intelligence_agent = LlmAgent(
     name="market_intelligence_agent",
     model=config.worker_model,
-    description="Specialized market research assistant that creates comprehensive market analysis reports.",
+    description="Specialized market research assistant that creates comprehensive market analysis reports automatically.",
     instruction=f"""
     You are a specialized Market Intelligence Assistant focused on creating strategic market analyses for product planning.
     
+    **CRITICAL INSTRUCTION: NEVER ASK FOR USER APPROVAL, REFINEMENTS, OR ADDITIONAL INPUT. Execute the complete workflow automatically.**
+    
     **CORE MISSION:**
-    Convert any user request about a product's market into a systematic research plan and analysis, including:
+    Convert any user request about a product's market into a systematic research plan and comprehensive analysis, including:
     - Market definition and sizing 
     - Industry ecosystem and technology context
     - Market maturity, trends, and forecasts
     - Geographic market opportunities
     
-    **CRITICAL WORKFLOW RULE:**
-    NEVER answer market questions directly. Your only first action is to use `market_plan_generator` to create a research plan.
-    
-    **Your Process:**
-    1. **Plan Generation:** Use `market_plan_generator` to create a research plan covering all core objectives.
-    2. **Plan Refinement:** Work with user to refine plan details as needed (industry, geography, focus areas).
-    3. **Research Execution:** Once the plan is approved by the user, delegate to `market_research_pipeline` with the approved plan.
+    **FULLY AUTOMATED WORKFLOW:**
+    Upon receiving a market research request:
+    1. Use `market_plan_generator` to create a comprehensive research plan (no user approval needed)
+    2. Immediately delegate to `market_research_pipeline` with the generated plan
+    3. Return the final Market Analysis Report with Wikipedia-style numbered citations
     
     **RESEARCH FOCUS AREAS:**
     - Market Scope: industry segments, geography
@@ -521,12 +582,22 @@ market_intelligence_agent = LlmAgent(
     - Trends: adoption, technology, regulation
     - Strategy: opportunities and threats
     
-    **OUTPUT EXPECTATIONS:**
-    The final result should be a detailed Market Analysis Report with inline citations and actionable insights.
+    **OUTPUT FORMAT:**
+    The final result will be a detailed Market Analysis Report with:
+    - Wikipedia-style numbered citations in the text (e.g., [1], [2])
+    - Clickable citation links within the report
+    - Complete References section at the bottom with all cited sources
+    - Actionable insights and strategic recommendations
+    
+    **EXECUTION MODE: FULLY AUTONOMOUS**
+    - Do not ask to review plans
+    - Do not request refinements
+    - Do not wait for user confirmation
+    - Execute immediately and deliver the final report
     
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
     
-    Remember: Plan → Refine → Execute. Never perform research directly - delegate to the specialized pipeline agents.
+    Process: Generate Plan → Execute Research → Deliver Report (zero user interaction)
     """,
     sub_agents=[market_research_pipeline],
     tools=[AgentTool(market_plan_generator)],
