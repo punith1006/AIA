@@ -2,7 +2,7 @@ import datetime
 import logging
 import re
 from collections.abc import AsyncGenerator
-from typing import Literal
+from typing import Literal, Dict, List, Optional
 
 from google.adk.agents import BaseAgent, LlmAgent, LoopAgent, SequentialAgent
 from google.adk.agents.callback_context import CallbackContext
@@ -12,39 +12,58 @@ from google.adk.planners import BuiltInPlanner
 from google.adk.tools import google_search
 from google.adk.tools.agent_tool import AgentTool
 from google.genai import types as genai_types
+from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
 from .config import config
 
 
 # --- Structured Output Models ---
-class SalesSearchQuery(BaseModel):
-    """Model representing a specific search query for sales intelligence research."""
+class ProductInfo(BaseModel):
+    """Model for product information input."""
+    name: str = Field(description="Product name")
+    category: str = Field(description="Product category or type")
+    description: str = Field(description="Brief product description")
+    key_features: List[str] = Field(default=[], description="Key product features or capabilities")
+    target_market: str = Field(default="", description="Primary target market or industry")
 
+
+class OrganizationTarget(BaseModel):
+    """Model for target organization information."""
+    name: str = Field(description="Organization name")
+    industry: str = Field(default="", description="Industry or sector")
+    size_estimate: str = Field(default="", description="Estimated company size (e.g., 'Large Enterprise', 'Mid-market')")
+    location: str = Field(default="", description="Primary location or headquarters")
+
+
+class SalesResearchQuery(BaseModel):
+    """Model representing a specific search query for sales intelligence research."""
     search_query: str = Field(
-        description="A targeted query for sales intelligence, focusing on target organization analysis, competitive landscape, and product-market fit opportunities."
+        description="A highly specific and targeted query for sales intelligence research"
     )
-    research_focus: str = Field(
-        description="The focus area: 'target_analysis', 'competitive_intelligence', 'product_fit', 'stakeholder_mapping', or 'sales_strategy'"
+    research_phase: str = Field(
+        description="The research phase: 'product_analysis', 'organization_intelligence', 'competitive_landscape', 'fit_analysis', or 'stakeholder_mapping'"
+    )
+    target_entity: str = Field(
+        description="The specific product or organization this query targets"
     )
 
 
 class SalesFeedback(BaseModel):
     """Model for evaluating sales intelligence research quality."""
-
     grade: Literal["pass", "fail"] = Field(
-        description="Evaluation result. 'pass' if sales intelligence is comprehensive, 'fail' if critical gaps exist."
+        description="Evaluation result. 'pass' if research meets sales intelligence standards, 'fail' if needs more depth."
     )
     comment: str = Field(
-        description="Detailed evaluation focusing on target organization analysis depth, competitive positioning clarity, and actionable sales insights."
+        description="Detailed evaluation focusing on completeness of product-organization fit analysis, stakeholder identification, and competitive insights."
     )
-    follow_up_queries: list[SalesSearchQuery] | None = Field(
+    follow_up_queries: List[SalesResearchQuery] | None = Field(
         default=None,
-        description="Specific follow-up searches to fill sales intelligence gaps, focusing on missing competitive data, stakeholder information, or product-market fit insights.",
+        description="Specific follow-up searches needed to fill sales intelligence gaps."
     )
 
 
-# --- Callbacks ---
+# --- Callbacks (preserved from original) ---
 def collect_research_sources_callback(callback_context: CallbackContext) -> None:
     """Collects and organizes web-based research sources and their supported claims from agent events."""
     session = callback_context._invocation_context.session
@@ -97,43 +116,46 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
     callback_context.state["sources"] = sources
 
 
-def citation_replacement_callback(callback_context: CallbackContext) -> genai_types.Content:
-    """Replaces <cite> tags with markdown footnotes and adds a References section."""
+def citation_replacement_callback(
+    callback_context: CallbackContext,
+) -> genai_types.Content:
+    """Replaces citation tags in a report with Wikipedia-style clickable numbered references."""
     final_report = callback_context.state.get("final_cited_report", "")
     sources = callback_context.state.get("sources", {})
-    reference_order = []
-    reference_map = {}
 
+    # Assign each short_id a numeric index
+    short_id_to_index = {}
+    for idx, short_id in enumerate(sorted(sources.keys()), start=1):
+        short_id_to_index[short_id] = idx
+
+    # Replace <cite> tags with clickable reference links
     def tag_replacer(match: re.Match) -> str:
         short_id = match.group(1)
-        if short_id not in sources:
-            logging.warning(f"Invalid citation tag found: {match.group(0)}")
+        if short_id not in short_id_to_index:
+            logging.warning(f"Invalid citation tag found and removed: {match.group(0)}")
             return ""
-        if short_id not in reference_map:
-            reference_map[short_id] = len(reference_order) + 1
-            reference_order.append(short_id)
-        return f"[{reference_map[short_id]}]"
+        index = short_id_to_index[short_id]
+        return f"[<a href=\"#ref{index}\">{index}</a>]"
 
-    # Replace citation tags with numbers
     processed_report = re.sub(
-        r'<cite\s+source\s*=\s*["\']?(src-\d+)["\']?\s*/?>',
+        r'<cite\s+source\s*=\s*["\']?\s*(src-\d+)\s*["\']?\s*/?>',
         tag_replacer,
         final_report,
     )
+    processed_report = re.sub(r"\s+([.,;:])", r"\1", processed_report)
 
-    # If no citations found but sources exist, include them anyway
-    if not reference_order and sources:
-        reference_order = list(sources.keys())
-        reference_map = {sid: idx + 1 for idx, sid in enumerate(reference_order)}
+    # Build a Wikipedia-style References section with anchors
+    references = "\n\n## References\n"
+    for short_id, idx in sorted(short_id_to_index.items(), key=lambda x: x[1]):
+        source_info = sources[short_id]
+        domain = source_info.get('domain', '')
+        references += (
+            f"<p id=\"ref{idx}\">[{idx}] "
+            f"<a href=\"{source_info['url']}\">{source_info['title']}</a>"
+            f"{f' ({domain})' if domain else ''}</p>\n"
+        )
 
-    # Append References section
-    if reference_order:
-        references_md = "\n\n## References\n"
-        for short_id in reference_order:
-            src = sources[short_id]
-            title = src.get("title") or src.get("domain") or "Untitled"
-            references_md += f"{reference_map[short_id]}. [{title}]({src['url']})\n"
-        processed_report += references_md
+    processed_report += references
 
     callback_context.state["final_report_with_citations"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
@@ -141,7 +163,7 @@ def citation_replacement_callback(callback_context: CallbackContext) -> genai_ty
 
 # --- Custom Agent for Loop Control ---
 class SalesEscalationChecker(BaseAgent):
-    """Checks sales intelligence evaluation and escalates to stop the loop if grade is 'pass'."""
+    """Checks sales research evaluation and escalates to stop the loop if grade is 'pass'."""
 
     def __init__(self, name: str):
         super().__init__(name=name)
@@ -149,396 +171,416 @@ class SalesEscalationChecker(BaseAgent):
     async def _run_async_impl(
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
-        evaluation_result = ctx.session.state.get("sales_evaluation")
+        evaluation_result = ctx.session.state.get("sales_research_evaluation")
         if evaluation_result and evaluation_result.get("grade") == "pass":
             logging.info(
-                f"[{self.name}] Sales intelligence evaluation passed. Escalating to stop loop."
+                f"[{self.name}] Sales intelligence research evaluation passed. Escalating to stop loop."
             )
             yield Event(author=self.name, actions=EventActions(escalate=True))
         else:
             logging.info(
-                f"[{self.name}] Sales intelligence evaluation failed or not found. Loop will continue."
+                f"[{self.name}] Sales research evaluation failed or not found. Loop will continue."
             )
             yield Event(author=self.name)
 
 
-# --- SALES INTELLIGENCE AGENT DEFINITIONS ---
+# --- ENHANCED AGENT DEFINITIONS ---
 sales_plan_generator = LlmAgent(
-    model=config.worker_model,
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(
+            initial_delay=1,
+            attempts=3
+        )
+    ),
     name="sales_plan_generator",
-    description="Generates comprehensive sales intelligence research plans that analyze target organizations in the context of the user's specific product/service offering.",
+    description="Generates comprehensive sales intelligence research plans for product-organization fit analysis.",
     instruction=f"""
-    You are an expert sales intelligence strategist specializing in product-market fit analysis and competitive positioning research.
+    You are an expert sales intelligence strategist specializing in product-market fit analysis and account-based selling research.
     
-    The user will provide:
-    1. Target organization name(s) for prospecting
-    2. Description of their product/service offering
-    3. Their company information and value proposition
+    Your task is to create a systematic 5-phase research plan to investigate target organizations and products for optimal sales alignment, focusing on:
+    - Product positioning and competitive differentiation
+    - Organizational structure and decision-making processes
+    - Technology landscape and current vendor relationships
+    - Stakeholder identification and influence mapping
+    - Product-organization fit assessment and opportunity prioritization
+
+    **INPUT ANALYSIS:**
+    You will receive:
+    - Products: List of products/services to be sold
+    - Target Organizations: List of organizations to research as potential clients
+    - Additional Context: Any specific requirements or focus areas
+
+    **RESEARCH PHASES STRUCTURE:**
+    Always organize your plan into these 5 distinct phases:
+
+    **Phase 1: Product Intelligence (20% of effort) - [RESEARCH] tasks:**
+    For each product:
+    - Research product category landscape and market positioning
+    - Analyze direct and indirect competitors' features, pricing, and positioning
+    - Identify ideal customer profiles and successful use cases
+    - Gather customer testimonials, case studies, and ROI metrics
+    - Research integration capabilities and technical requirements
+
+    **Phase 2: Organization Intelligence (25% of effort) - [RESEARCH] tasks:**
+    For each target organization:
+    - Investigate company website, official communications, and basic corporate information
+    - Research financial health, recent funding, revenue trends, and budget indicators
+    - Analyze leadership team, org structure, and key decision-makers
+    - Find recent business news, strategic initiatives, and growth plans
+    - Assess company culture, values, and operational priorities
+
+    **Phase 3: Technology & Vendor Landscape (20% of effort) - [RESEARCH] tasks:**
+    For each target organization:
+    - Research current technology stack and digital infrastructure
+    - Identify existing vendors and solution providers
+    - Find contract renewal timelines and vendor satisfaction indicators
+    - Analyze technology gaps and modernization initiatives
+    - Assess integration requirements and technical compatibility
+
+    **Phase 4: Stakeholder Mapping (20% of effort) - [RESEARCH] tasks:**
+    For each target organization:
+    - Research key decision-makers and their backgrounds/interests
+    - Identify potential champions and influencers in relevant departments
+    - Analyze reporting structures and decision-making processes
+    - Find contact information and preferred communication channels
+    - Research recent personnel changes and hiring patterns
+
+    **Phase 5: Competitive & Risk Assessment (15% of effort) - [RESEARCH] tasks:**
+    Cross-analysis of products vs. organizations:
+    - Identify competitive threats and incumbent solutions per organization
+    - Assess budget constraints and buying timeline indicators
+    - Research potential objections and common sales obstacles
+    - Analyze cultural fit and change management considerations
+    - Evaluate regulatory compliance and security requirements
+
+    **DELIVERABLE CLASSIFICATION:**
+    After the research phases, add synthesis deliverables:
+    - **`[DELIVERABLE]`**: Create comprehensive sales intelligence report following the 9-section format
+    - **`[DELIVERABLE]`**: Develop product-organization fit analysis matrix
+    - **`[DELIVERABLE]`**: Generate stakeholder engagement strategy and action plan
+
+    **SEARCH STRATEGY INTEGRATION:**
+    Your plan should guide the researcher to use these search patterns:
     
-    Your task is to create a systematic sales intelligence research plan that analyzes the target organizations specifically through the lens of how the user's product/service can solve their problems and compete against existing alternatives.
+    Product Research:
+    - "[Product name]" + "competitors" + "comparison" + "vs"
+    - "[Product category]" + "market analysis" + "leaders" + "2024"
+    - "[Product name]" + "customer reviews" + "case studies" + "ROI"
+    - "[Product name]" + "pricing" + "features" + "integration"
 
-    **SALES INTELLIGENCE RESEARCH PHASES:**
+    Organization Research:
+    - "[Org name]" + "official website" + "leadership" + "executives"
+    - "[Org name]" + "financial" + "revenue" + "funding" + "budget"
+    - "[Org name]" + "technology stack" + "vendors" + "solutions"
+    - "[Org name]" + "news" + "2024" + "strategic initiatives"
+    - "[Org name]" + "org chart" + "departments" + "decision makers"
 
-    **Phase 1: Target Organization Deep Dive (25% of effort) - [RESEARCH] tasks:**
-    - Analyze target company's business model, revenue streams, and operational challenges
-    - Research current technology stack, tools, and vendor relationships
-    - Identify pain points, inefficiencies, and growth initiatives that create opportunities
-    - Map organizational structure, departments, and decision-making processes
-    - Investigate recent changes, expansions, or strategic initiatives
-
-    **Phase 2: Competitive Landscape Analysis (25% of effort) - [RESEARCH] tasks:**
-    - Identify existing solutions/vendors the target already uses in your product category
-    - Research competitor strengths, weaknesses, pricing, and market positioning
-    - Analyze target's satisfaction with current solutions (reviews, feedback, contracts)
-    - Find gaps in current solutions that your product could fill
-    - Research alternative solutions they might be considering
-
-    **Phase 3: Stakeholder & Decision-Maker Intelligence (25% of effort) - [RESEARCH] tasks:**
-    - Identify key decision-makers, influencers, and budget holders
-    - Research individual backgrounds, priorities, and professional interests
-    - Map reporting structures and decision-making processes
-    - Find shared connections, common interests, or warm introduction paths
-    - Analyze communication preferences and engagement patterns
-
-    **Phase 4: Sales Strategy & Positioning (25% of effort) - [RESEARCH] tasks:**
-    - Research target's budget cycles, procurement processes, and buying patterns
-    - Identify timing indicators, trigger events, and opportunity windows
-    - Analyze their vendor selection criteria and preferred partner characteristics
-    - Research their success metrics, KPIs, and performance challenges
-    - Find case studies of similar companies that adopted solutions like yours
-
-    **DELIVERABLE SYNTHESIS:**
-    After research phases, create these strategic deliverables:
-    - **`[DELIVERABLE]`**: Generate comprehensive Target Organization Sales Intelligence Profile
-    - **`[DELIVERABLE]`**: Develop Product-Market Fit Analysis and Value Proposition Mapping
-    - **`[DELIVERABLE]`**: Create Competitive Positioning Strategy against current solutions
-    - **`[DELIVERABLE]`**: Compile Stakeholder Engagement Plan and Messaging Framework
-    - **`[DELIVERABLE]`**: Design Sales Approach Timeline and Tactical Recommendations
-
-    **SEARCH STRATEGY GUIDANCE:**
-    Your plan should guide searches for:
-    - Target company + your product category + "current solutions" + "vendors"
-    - Target company + "challenges" + "pain points" + relevant business area
-    - Target company + "decision makers" + relevant department/function
-    - Target company + competitor names + "partnership" + "contract"
-    - Target company + "budget" + "procurement" + "vendor selection"
-    - Key stakeholder names + professional background + priorities
-    - Similar companies + your product category + "case study" + "success story"
-    - Target company + "technology stack" + "tools" + "integration"
+    Competitive Analysis:
+    - "[Org name]" + "[Product category]" + "current solutions"
+    - "[Org name]" + "vendor contracts" + "renewals" + "procurement"
+    - "[Product competitors]" + "[Org name]" + "implementation" + "usage"
 
     **TOOL USE:**
-    Only use Google Search for initial validation if target organization or product category needs clarification.
-    Do NOT conduct the actual research - that's for the specialist researcher.
+    Only use Google Search if product or organization information is ambiguous and needs verification.
+    Do NOT conduct the actual research - that's for the researcher agent.
     
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
     
-    Focus on creating plans that generate actionable sales intelligence for winning deals against competitive alternatives.
+    Focus on creating plans that will generate actionable sales intelligence for product-organization alignment and account-based selling strategies.
     """,
-    output_key="research_plan",
+    output_key="sales_research_plan",
     tools=[google_search],
 )
 
 sales_section_planner = LlmAgent(
-    model=config.worker_model,
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(
+            initial_delay=1,
+            attempts=3
+        )
+    ),
     name="sales_section_planner",
-    description="Creates structured sales intelligence report outline focused on product-market fit analysis and competitive positioning.",
+    description="Creates a structured sales intelligence report outline following the standardized 9-section format.",
     instruction="""
-    You are an expert sales strategy report architect. Using the sales intelligence research plan and the user's product/service context, create a structured markdown outline for a comprehensive Sales Intelligence & Competitive Positioning Report.
+    You are an expert sales intelligence report architect. Using the sales research plan, create a structured markdown outline that follows the standardized Sales Intelligence Report Format.
 
-    Your outline must include these core sections for actionable sales intelligence:
+    Your outline must include these core sections:
 
     # 1. Executive Summary
-    - Target Organization Overview and Key Metrics
-    - Product-Market Fit Assessment Summary
-    - Primary Competitive Threats and Opportunities
-    - Recommended Sales Approach and Timeline
-    - Expected Deal Size and Probability Assessment
+    - Purpose statement (why this report exists)
+    - Scope overview (products covered, organizations targeted)
+    - Key Highlights:
+      * Top opportunities and priority accounts
+      * Expected short-term wins vs. long-term nurture strategies
+      * Critical success factors
+    - Key Risks/Challenges summary
 
-    # 2. Target Organization Analysis
-    - Business Model and Revenue Drivers
-    - Current Operational Challenges and Pain Points
-    - Technology Infrastructure and Vendor Ecosystem
-    - Growth Initiatives and Strategic Priorities
-    - Organizational Structure and Department Dynamics
+    # 2. Product Overview(s)
+    (One sub-section per product)
+    - Product Name & Category
+    - Core Value Proposition (strategic + operational benefits)
+    - Key Differentiators vs. market alternatives
+    - Primary Use Cases and success scenarios
+    - Ideal Customer Profile (ICP) Fit Factors
+    - Critical Success Metrics (ROI measures customers value)
 
-    # 3. Current Solution Landscape
-    - Existing Vendors and Tool Stack in Your Category
-    - Current Solution Performance and Satisfaction Levels
-    - Contract Status and Renewal Timelines
-    - Identified Gaps and Unmet Needs
-    - Budget Allocation and Spending Patterns
+    # 3. Target Organization Profiles
+    (One section per organization)
+    ## 3.1 Organization Summary
+    - Basic company data (name, HQ, size, revenue, industry, website, fiscal year)
+    - Recent news & strategic initiatives
+    - Growth stage & funding status
 
-    # 4. Competitive Positioning Analysis
-    - Direct Competitors Already Serving Target
-    - Competitive Strengths vs. Your Product Advantages
-    - Pricing Comparison and Value Differentiation
-    - Feature Gap Analysis and Unique Selling Points
-    - Competitive Displacement Strategy
+    ## 3.2 Organizational Structure & Influence Map
+    - Relevant department org chart
+    - Decision-makers, influencers, and potential champions
+    - Power/Interest Matrix mapping of key stakeholders
 
-    # 5. Stakeholder Intelligence
-    - Key Decision-Makers and Influencer Mapping
-    - Individual Background and Professional Priorities
-    - Decision-Making Process and Approval Hierarchy
-    - Communication Preferences and Engagement Patterns
-    - Shared Connections and Warm Introduction Opportunities
+    ## 3.3 Business Priorities & Pain Points
+    - Publicly stated objectives and strategic goals
+    - Known challenges (financial, operational, competitive, compliance)
+    - Technology gaps and modernization needs
 
-    # 6. Product-Market Fit Assessment
-    - Alignment Between Your Solution and Target's Needs
-    - ROI Potential and Value Creation Opportunities
-    - Implementation Feasibility and Integration Requirements
-    - Success Metrics and Performance Improvement Potential
-    - Risk Factors and Adoption Barriers
+    ## 3.4 Current Vendor & Solution Landscape
+    - Existing tools and services in relevant categories
+    - Contract renewal timelines (if discoverable)
+    - Vendor satisfaction levels from reviews/forums
 
-    # 7. Sales Opportunity Analysis
-    - Buying Signals and Trigger Events
-    - Budget Availability and Procurement Processes
-    - Timeline Indicators and Decision Windows
-    - Competitive Threats and Urgency Factors
-    - Deal Size Estimation and Revenue Potential
+    # 4. Product–Organization Fit Analysis
+    Cross-matrix analysis: each product vs. each target organization
+    - Strategic Fit (Executive Level alignment)
+    - Operational Fit (User Level compatibility)
+    - Key Value Drivers for each combination
+    - Potential Risks and obstacles
+    - Champion/Decision Maker Candidates identification
 
-    # 8. Messaging & Value Proposition Strategy
-    - Customized Value Propositions for Key Stakeholders
-    - Pain Point-Specific Messaging Framework
-    - Competitive Differentiation Talking Points
-    - ROI and Business Case Messaging
-    - Risk Mitigation and Trust-Building Messages
+    # 5. Competitive Landscape (Per Organization)
+    - Top competitors selling similar products to each target org
+    - Feature/price comparison tables where possible
+    - Differentiation opportunities for each product-org combination
 
-    # 9. Engagement Strategy & Tactics
-    - Optimal Outreach Timing and Sequencing
-    - Preferred Communication Channels and Methods
-    - Content Strategy and Resource Requirements
-    - Demonstration and Proof-of-Concept Approach
-    - Relationship-Building and Trust Development Plan
+    # 6. Stakeholder Engagement Strategy
+    - Primary Targets (who to approach first)
+    - Messaging Themes (strategic vs. operational talking points)
+    - Engagement Channels (email, LinkedIn, events, referrals)
+    - Proposed Sequence (warm-up → discovery → demo → proposal)
 
-    # 10. Implementation Roadmap
-    - Immediate Action Items and Next Steps
-    - 30-60-90 Day Engagement Timeline
-    - Resource Requirements and Team Coordination
-    - Success Metrics and Progress Tracking
-    - Contingency Planning for Common Objections
+    # 7. Risks & Red Flags
+    - Budget constraints and procurement challenges
+    - Mismatched priorities or timing issues
+    - Strong competitor entrenchment
+    - Lack of identified champions
+    - Cultural resistance to change factors
 
-    # 11. Risk Assessment & Mitigation
-    - Competitive Threats and Counter-Strategies
-    - Internal Resistance and Change Management Issues
-    - Technical Integration and Implementation Risks
-    - Budget and Timing Risks
-    - Relationship and Political Risks
+    # 8. Next Steps & Action Plan
+    ## Immediate Actions (Next 7-14 days)
+    ## Medium-Term Strategy (Next 1-3 months)
+    ## Long-Term Nurture (3+ months)
 
-    Ensure your outline enables comprehensive sales intelligence that directly supports deal-winning strategies and competitive positioning.
-    Do not include a separate References section - citations will be inline.
+    # 9. Appendices
+    - Detailed Stakeholder Profiles
+    - Extended Org Charts and contact information
+    - Full Vendor Lists & Technographic Data
+    - Media Mentions archive
+    - Reference Materials & Sources
+
+    Ensure your outline allows for modular expansion - additional products or organizations can be added without breaking the structure.
+    Do not include a separate References section - citations will be inline throughout.
     """,
     output_key="sales_report_sections",
 )
 
-sales_intelligence_researcher = LlmAgent(
-    model=config.worker_model,
-    name="sales_intelligence_researcher",
-    description="Specialized sales intelligence researcher that analyzes target organizations through the lens of specific product-market fit and competitive positioning.",
+sales_researcher = LlmAgent(
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(
+            initial_delay=1,
+            attempts=3
+        )
+    ),
+    name="sales_researcher",
+    description="Specialized sales intelligence researcher focusing on product-organization fit analysis and competitive positioning.",
     planner=BuiltInPlanner(
         thinking_config=genai_types.ThinkingConfig(include_thoughts=True)
     ),
     instruction="""
-    You are a specialized sales intelligence researcher with expertise in competitive analysis, stakeholder mapping, and product-market fit assessment.
+    You are a specialized sales intelligence researcher with expertise in product-market fit analysis, competitive intelligence, and account-based selling research.
 
-    **CONTEXT AWARENESS:**
-    You have access to:
-    - Target organization name(s) to research
-    - User's product/service description and capabilities
-    - User's company information and competitive positioning
+    **CORE RESEARCH PRINCIPLES:**
+    - Sales Focus: Prioritize information directly impacting sales conversations and deal progression
+    - Competitive Awareness: Always research competitive landscape and incumbent solutions
+    - Stakeholder Mapping: Identify decision-makers, influencers, and potential champions
+    - Opportunity Sizing: Assess budget capacity, timing, and buying signals
+    - Risk Assessment: Flag potential obstacles, competitive threats, and misalignment factors
 
-    **CORE RESEARCH MISSION:**
-    Analyze target organizations specifically to determine:
-    1. How your user's product/service aligns with target's needs and challenges
-    2. What competitive solutions currently exist in the target organization
-    3. Who the key decision-makers are and how to reach them
-    4. What messaging and approach will be most effective for winning the deal
+    **EXECUTION METHODOLOGY:**
 
-    **SALES INTELLIGENCE METHODOLOGY:**
+    **Phase 1: Product Intelligence Research**
+    For each product mentioned in the research plan:
 
-    **Phase 1: Target Organization Deep Dive**
-    For each target organization research goal, execute comprehensive searches:
+    *Market Positioning & Competition:*
+    - "[Product name] competitors comparison features pricing"
+    - "[Product category] market leaders 2024 analysis"
+    - "[Product name] vs [known competitor] differences"
+    - "[Product name] customer reviews G2 Capterra TrustRadius"
 
-    *Business Model & Pain Point Analysis:*
-    - "[Target Company] business model revenue challenges"
-    - "[Target Company] operational inefficiencies pain points"
-    - "[Target Company] growth initiatives strategic priorities 2024"
-    - "[Target Company] [relevant business area] challenges problems"
+    *Value Proposition & Use Cases:*
+    - "[Product name] case studies ROI customer success"
+    - "[Product name] pricing model cost benefits"
+    - "[Product name] integration capabilities API technical"
+    - "[Product category] buyer guide selection criteria"
 
-    *Technology & Vendor Ecosystem:*
-    - "[Target Company] technology stack tools vendors"
-    - "[Target Company] [your product category] current solutions"
-    - "[Target Company] software partnerships integrations"
-    - "[Target Company] IT infrastructure digital transformation"
+    **Phase 2: Organization Intelligence Research**
+    For each target organization:
 
-    *Organizational Intelligence:*
-    - "[Target Company] organizational chart department structure"
-    - "[Target Company] [relevant department] team leadership"
-    - "[Target Company] decision making process procurement"
-    - "[Target Company] budget allocation [relevant category]"
+    *Company Fundamentals:*
+    - "[Org name] official website about leadership team"
+    - "[Org name] revenue financial performance annual report"
+    - "[Org name] recent news 2024 strategic initiatives"
+    - "[Org name] company size employees headcount"
 
-    **Phase 2: Competitive Landscape Analysis**
+    *Decision-Making Structure:*
+    - "[Org name] organizational chart executives departments"
+    - "[Org name] CTO CIO IT leadership technology team"
+    - "[Org name] procurement process vendor selection"
+    - "[Org name] LinkedIn employees leadership profiles"
 
-    *Current Solution Research:*
-    - "[Target Company] + [competitor names] partnership contract"
-    - "[Target Company] [current vendor] satisfaction reviews"
-    - "[Target Company] [product category] vendor evaluation RFP"
-    - "[Target Company] + [your product category] + problems issues"
+    **Phase 3: Technology & Vendor Landscape**
+    For each target organization:
 
-    *Competitive Intelligence:*
-    - "[Competitor names] vs [your company] comparison"
-    - "[Target Company] [competitor] implementation case study"
-    - "[Competitor] pricing model contract terms"
-    - "[Target Company] vendor switching [product category]"
+    *Current Technology Stack:*
+    - "[Org name] technology stack tools software vendors"
+    - "[Org name] [product category] current solutions"
+    - "[Org name] vendor partnerships technology integrations"
+    - "[Org name] digital transformation initiatives modernization"
 
-    **Phase 3: Stakeholder & Decision-Maker Intelligence**
+    *Vendor Relationships:*
+    - "[Org name] vendor contracts renewals procurement announcements"
+    - "[Org name] software implementations technology deployments"
+    - "[Org name] vendor satisfaction reviews complaints"
 
-    *Key Personnel Research:*
-    - "[Decision maker names] [Target Company] LinkedIn background"
-    - "[Target Company] [relevant department] director manager"
-    - "[Key stakeholder] professional interests priorities"
-    - "[Target Company] procurement team vendor relations"
+    **Phase 4: Stakeholder Research**
+    For key personnel at each organization:
 
-    *Relationship Mapping:*
-    - "[Your company] [Target Company] shared connections"
-    - "[Key stakeholder] professional network associations"
-    - "[Target Company] industry conference events attendance"
-    - "[Decision maker] social media activity LinkedIn posts"
+    *Decision-Maker Analysis:*
+    - "[Person name] [Org name] LinkedIn background experience"
+    - "[Department head] [Org name] technology priorities initiatives"
+    - "[Org name] recent hires leadership changes [product category]"
+    - "[Org name] conference speakers technology presentations"
 
-    **Phase 4: Sales Strategy Research**
+    **Phase 5: Competitive & Market Research**
+    Cross-analysis research:
 
-    *Buying Process Intelligence:*
-    - "[Target Company] procurement process vendor selection"
-    - "[Target Company] budget cycle Q1 Q2 Q3 Q4 spending"
-    - "[Target Company] RFP process vendor requirements"
-    - "[Target Company] contract negotiation approval process"
+    *Competitive Positioning:*
+    - "[Competitor name] [Org name] partnership implementation"
+    - "[Product category] market share [Org name] industry"
+    - "[Org name] RFP requirements vendor selection [product category]"
+    - "[Org name] budget technology spending [current year]"
 
-    *Opportunity Indicators:*
-    - "[Target Company] expansion hiring [relevant department]"
-    - "[Target Company] funding growth investment 2024"
-    - "[Target Company] [pain point keywords] urgent needs"
-    - "[Target Company] [trigger events] initiative launch"
+    **QUALITY STANDARDS:**
+    - Source Diversity: Mix official sources, industry reports, social media, and third-party reviews
+    - Recency Priority: Focus on developments within last 12 months
+    - Sales Relevance: Emphasize information affecting buying decisions
+    - Competitive Intelligence: Always research competitive landscape thoroughly
+    - Stakeholder Focus: Identify specific individuals and their influence/interests
+    - Opportunity Assessment: Evaluate timing, budget capacity, and buying signals
 
-    *Success Pattern Research:*
-    - "companies like [Target Company] [your product] success story"
-    - "[Target Company] similar size industry [your solution] ROI"
-    - "[Your product category] [Target Company industry] case studies"
-    - "[Target Company] competitors [your solution] implementation"
+    **CRITICAL SUCCESS FACTORS:**
+    - Identify specific decision-makers and their contact information
+    - Understand current technology pain points and gaps
+    - Map competitive threats and incumbent solution relationships
+    - Assess budget capacity and procurement timeline indicators
+    - Find specific business challenges your products can address
+    - Locate potential internal champions and influencers
 
-    **COMPETITIVE FOCUS AREAS:**
-    - **Solution Gap Analysis:** What problems does the target have that current vendors don't solve?
-    - **Vendor Satisfaction:** How happy is the target with current solutions? (reviews, complaints, contract renewals)
-    - **Switching Costs:** What barriers exist to changing from current solutions?
-    - **Decision Criteria:** What factors does the target prioritize in vendor selection?
-    - **Differentiation Opportunities:** Where does your solution uniquely excel vs. competitors?
+    **Phase 6: Synthesis ([DELIVERABLE] goals)**
+    After completing ALL research goals:
+    - Organize findings by the structured report sections
+    - Create product-organization fit matrix analysis
+    - Develop stakeholder engagement strategies
+    - Highlight sales-relevant insights and next steps
+    - Flag information gaps requiring additional research
 
-    **STAKEHOLDER INTELLIGENCE PRIORITIES:**
-    - **Decision Authority:** Who has budget authority and final approval power?
-    - **Influence Network:** Who influences the decision-makers?
-    - **Pain Ownership:** Who feels the pain that your solution solves most acutely?
-    - **Champion Potential:** Who could become an internal advocate for your solution?
-    - **Relationship Access:** How can you reach key stakeholders (warm introductions, events, content)?
-
-    **SALES OPPORTUNITY INDICATORS:**
-    - **Timing Signals:** Budget cycles, contract renewals, strategic initiatives, expansion plans
-    - **Urgency Drivers:** Competitive pressure, regulatory requirements, performance gaps
-    - **Budget Availability:** Recent funding, growing teams, new initiatives, vendor spending
-    - **Change Readiness:** New leadership, transformation projects, technology modernization
-
-    **Phase 5: Synthesis & Strategic Analysis**
-    After completing all research goals, synthesize findings into actionable sales intelligence:
-    - Map user's product capabilities to target's specific needs and challenges
-    - Identify key competitive differentiation points and messaging angles  
-    - Create stakeholder-specific value propositions and engagement strategies
-    - Develop timeline-based approach recommendations with specific tactics
-    - Highlight highest-probability opportunities and potential obstacles
-
-    Your final output must provide comprehensive, actionable intelligence that enables winning sales strategies against competitive alternatives.
+    Your research must provide actionable intelligence for account-based selling and product positioning strategies.
     """,
     tools=[google_search],
-    output_key="sales_intelligence_findings",
+    output_key="sales_research_findings",
     after_agent_callback=collect_research_sources_callback,
 )
 
-sales_intelligence_evaluator = LlmAgent(
-    model=config.critic_model,
-    name="sales_intelligence_evaluator",
-    description="Evaluates sales intelligence research for completeness and actionability in competitive sales situations.",
+sales_evaluator = LlmAgent(
+    model=Gemini(
+        model=config.critic_model,
+        retry_options=genai_types.HttpRetryOptions(
+            initial_delay=1,
+            attempts=3
+        )
+    ),
+    name="sales_evaluator",
+    description="Evaluates sales intelligence research completeness and identifies gaps for product-organization fit analysis.",
     instruction=f"""
-    You are a senior sales strategy analyst evaluating sales intelligence research for deal-winning completeness and competitive positioning effectiveness.
+    You are a senior sales intelligence analyst evaluating research for completeness and sales actionability.
 
     **EVALUATION CRITERIA:**
-    Assess the research findings in 'sales_intelligence_findings' against these critical sales intelligence standards:
+    Assess the research findings in 'sales_research_findings' against these standards:
 
-    **1. Target Organization Analysis Quality (25%):**
-    - Business model, pain points, and operational challenges clearly identified
-    - Current technology stack and vendor relationships mapped comprehensively
-    - Organizational structure and decision-making processes documented
-    - Growth initiatives and strategic priorities that create opportunities identified
-    - Budget cycles, procurement processes, and buying patterns analyzed
+    **1. Product Intelligence Quality (25%):**
+    - Competitive landscape mapping and differentiation analysis
+    - Customer testimonials, case studies, and ROI data
+    - Pricing information and value proposition clarity
+    - Technical requirements and integration capabilities
 
-    **2. Competitive Intelligence Depth (30%):**
-    - Existing solutions and vendors in target organization identified and analyzed
-    - Competitor strengths, weaknesses, and positioning clearly documented
-    - Current solution satisfaction levels and performance gaps identified
-    - Contract terms, renewal dates, and switching costs analyzed
-    - Competitive differentiation opportunities and unique value props defined
+    **2. Organization Intelligence Depth (25%):**
+    - Company fundamentals (size, revenue, structure, recent news)
+    - Decision-making processes and organizational hierarchy
+    - Business priorities, strategic initiatives, and pain points
+    - Financial health and budget capacity indicators
 
-    **3. Stakeholder Intelligence Completeness (25%):**
-    - Key decision-makers, influencers, and budget holders identified with contact info
-    - Individual backgrounds, priorities, and professional interests researched
-    - Decision-making process, approval hierarchy, and influence network mapped
-    - Communication preferences and engagement patterns documented
-    - Shared connections and warm introduction paths identified
+    **3. Technology & Vendor Analysis (20%):**
+    - Current technology stack and solution inventory
+    - Existing vendor relationships and satisfaction levels
+    - Contract renewal timelines and procurement processes
+    - Technology gaps and modernization initiatives
 
-    **4. Sales Strategy Actionability (20%):**
-    - Specific product-market fit assessment with ROI potential quantified
-    - Customized value propositions for different stakeholder personas
-    - Timing indicators, trigger events, and optimal engagement windows identified
-    - Messaging frameworks that address specific pain points and competitive concerns
-    - Tactical recommendations with concrete next steps and success metrics
+    **4. Stakeholder Mapping Quality (20%):**
+    - Decision-maker identification with contact details
+    - Influence mapping and champion identification potential
+    - Individual backgrounds, interests, and technology preferences
+    - Recent personnel changes and hiring patterns
 
-    **CRITICAL FAILURE CONDITIONS:**
-    Grade "fail" if ANY of these essential elements are missing or insufficient:
+    **5. Sales Intelligence Actionability (10%):**
+    - Product-organization fit assessment completeness
+    - Competitive positioning and threat analysis
+    - Buying signals and opportunity timing indicators
+    - Specific next steps and engagement strategy clarity
 
-    **Target Analysis Gaps:**
-    - Current vendor/solution identification in user's product category
-    - Key decision-maker identification and contact information
-    - Specific pain points that user's product addresses
-    - Budget/procurement process understanding
+    **CRITICAL EVALUATION RULES:**
+    1. Grade "fail" if ANY of these core elements are missing or insufficient:
+       - Competitive analysis for each product category
+       - Key decision-maker identification with roles/contact info
+       - Current vendor/solution landscape per organization
+       - Business priorities and technology pain points
+       - Budget capacity and procurement timeline indicators
 
-    **Competitive Intelligence Gaps:**
-    - Missing analysis of key competitors already serving the target
-    - Lack of differentiation strategy against existing solutions
-    - No insight into current solution satisfaction or contract status
-    - Missing pricing or value comparison framework
+    2. Grade "fail" if research lacks product-organization fit analysis depth
 
-    **Stakeholder Intelligence Gaps:**
-    - Key decision-makers not identified or inadequately researched
-    - No insight into decision-making process or approval requirements
-    - Missing communication preferences or engagement strategies
-    - No relationship mapping or warm introduction opportunities
+    3. Grade "fail" if stakeholder mapping is incomplete or lacks actionable contact information
 
-    **Strategic Actionability Gaps:**
-    - No clear product-market fit assessment or value quantification
-    - Generic messaging without stakeholder-specific customization
-    - Missing timing strategy or optimal engagement windows
-    - No concrete tactical recommendations or next steps
+    4. Grade "fail" if competitive intelligence is superficial or missing key incumbent solutions
+
+    5. Grade "pass" only if research provides comprehensive sales intelligence suitable for immediate account-based selling execution
 
     **FOLLOW-UP QUERY GENERATION:**
-    If grading "fail", generate 5-7 targeted follow-up queries addressing the most critical gaps:
-    - Focus on missing competitive intelligence about existing vendors
-    - Target specific stakeholder identification and background research
-    - Seek deeper product-market fit and value proposition insights
-    - Find tactical intelligence about timing, budgets, and decision processes
+    If grading "fail", generate 5-8 specific follow-up queries targeting the most critical gaps:
+    - Focus on missing competitive intelligence and vendor relationships
+    - Target specific stakeholder identification and contact information
+    - Address product-organization fit analysis gaps
+    - Include searches for budget/procurement timeline indicators
+    - Prioritize actionable sales intelligence over general company information
 
-    **SUCCESS STANDARDS:**
-    Grade "pass" only if the research provides:
-    - Comprehensive competitive landscape with clear differentiation strategy
-    - Actionable stakeholder intelligence with specific engagement approaches
-    - Quantified product-market fit assessment with ROI projections
-    - Tactical sales strategy with timeline and concrete next steps
-
-    Be demanding about research quality - winning competitive sales requires deep, actionable intelligence that goes far beyond basic company information.
+    Be demanding about research quality - sales intelligence requires detailed, current, and actionable information for successful account-based selling.
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
     Your response must be a single, raw JSON object validating against the 'SalesFeedback' schema.
@@ -546,332 +588,257 @@ sales_intelligence_evaluator = LlmAgent(
     output_schema=SalesFeedback,
     disallow_transfer_to_parent=True,
     disallow_transfer_to_peers=True,
-    output_key="sales_evaluation",
+    output_key="sales_research_evaluation",
 )
 
-enhanced_sales_intelligence_search = LlmAgent(
-    model=config.worker_model,
-    name="enhanced_sales_intelligence_search",
-    description="Executes precision follow-up searches to fill critical sales intelligence gaps identified by the evaluator.",
+enhanced_sales_search = LlmAgent(
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(
+            initial_delay=1,
+            attempts=3
+        )
+    ),
+    name="enhanced_sales_search",
+    description="Executes targeted follow-up searches to fill sales intelligence gaps identified by the evaluator.",
     planner=BuiltInPlanner(
         thinking_config=genai_types.ThinkingConfig(include_thoughts=True)
     ),
     instruction="""
-    You are a specialist sales intelligence researcher executing targeted follow-up research to address critical gaps in competitive positioning and deal-winning intelligence.
+    You are a specialist sales intelligence researcher executing precision follow-up research to address specific gaps in product-organization fit analysis.
 
     **MISSION:**
-    Your previous sales intelligence research was graded as insufficient for winning competitive deals. You must now execute precision searches to fill these specific gaps:
+    Your previous sales research was graded as insufficient. You must now:
 
-    1. **Review Sales Evaluation:** Analyze 'sales_evaluation' to understand deficiencies in:
-       - Competitive landscape analysis and existing vendor identification
-       - Stakeholder intelligence and decision-maker mapping
-       - Product-market fit assessment and value quantification
-       - Tactical sales strategy and engagement recommendations
+    1. **Review Evaluation Feedback:** Analyze 'sales_research_evaluation' to understand specific deficiencies in:
+       - Product competitive positioning and differentiation analysis
+       - Organization stakeholder mapping and decision-maker identification
+       - Technology landscape and current vendor relationships
+       - Product-organization fit assessment depth
+       - Sales actionability and next steps clarity
 
-    2. **Execute Precision Follow-Up Searches:** Run EVERY query in 'follow_up_queries' with enhanced techniques:
+    2. **Execute Targeted Searches:** Run EVERY query in 'follow_up_queries' using these enhanced search techniques:
+       - Use exact product names and competitor names for precision
+       - Include organization names with specific role titles for stakeholder identification
+       - Target specific platforms (LinkedIn for personnel, G2/Capterra for product reviews)
+       - Search for financial indicators and procurement timeline clues
+       - Focus on recent information (2024, current year) for timing relevance
 
-    **Enhanced Competitive Intelligence Searches:**
-    - "[Target Company] [specific competitor names] current contract partnership"
-    - "[Target Company] [product category] vendor evaluation RFP requirements"
-    - "[Target Company] + [competitor] + satisfaction problems issues complaints"
-    - "[Target Company] technology budget [product category] spending allocation"
-    - "[Target Company] [current solution] integration challenges limitations"
+    3. **Integrate and Enhance:** Combine new findings with existing 'sales_research_findings' to create:
+       - More comprehensive product-organization fit matrices
+       - Better verified competitive intelligence and positioning
+       - Enhanced stakeholder profiles with contact information
+       - Stronger technology landscape and vendor relationship analysis
+       - More actionable sales intelligence and engagement strategies
 
-    **Deep Stakeholder Intelligence Searches:**
-    - "[Specific decision maker names] [Target Company] LinkedIn contact information"
-    - "[Target Company] [department] organizational chart reporting structure"
-    - "[Key stakeholder] professional background career priorities goals"
-    - "[Target Company] procurement team vendor selection criteria process"
-    - "[Decision maker] social media activity professional interests LinkedIn posts"
+    **SEARCH OPTIMIZATION FOR SALES INTELLIGENCE:**
+    - Prioritize competitive intelligence and incumbent solution identification
+    - Seek specific stakeholder contact information and organizational roles
+    - Look for budget indicators, procurement processes, and buying timeline signals
+    - Find technology pain points and modernization initiatives
+    - Cross-reference vendor satisfaction and contract renewal information
+    - Verify product positioning through customer reviews and case studies
 
-    **Enhanced Product-Market Fit Searches:**
-    - "[Target Company] [specific pain points] urgent needs 2024"
-    - "[Target Company] [user's product category] ROI value case studies"
-    - "companies like [Target Company] [user's solution] success implementation"
-    - "[Target Company] industry [user's product] competitive advantage benefits"
-    - "[Target Company] [current challenges] [user's solution] potential impact"
+    **INTEGRATION STANDARDS:**
+    - Merge new information with existing research seamlessly
+    - Highlight newly discovered sales-relevant information
+    - Resolve conflicts between old and new competitive intelligence
+    - Maintain focus on actionable sales insights throughout
+    - Ensure enhanced research supports account-based selling strategies
 
-    **Tactical Sales Intelligence Searches:**
-    - "[Target Company] budget cycle Q1 Q2 Q3 Q4 vendor spending patterns"
-    - "[Target Company] [trigger events] expansion initiatives new projects"
-    - "[Target Company] vendor partnership announcement [product category]"
-    - "[Target Company] conference attendance events [relevant industry]"
-    - "[User's company] [Target Company] shared connections mutual contacts"
-
-    3. **Integrate Enhanced Intelligence:** Combine new findings with existing 'sales_intelligence_findings' to create:
-       - More complete competitive landscape with specific vendor details
-       - Enhanced stakeholder profiles with actionable contact and engagement strategies
-       - Quantified product-market fit assessment with specific ROI projections
-       - Tactical sales approach with concrete timelines and next steps
-
-    **INTEGRATION PRIORITIES:**
-    - **Competitive Focus:** Ensure comprehensive analysis of existing solutions and clear differentiation strategy
-    - **Stakeholder Depth:** Provide actionable intelligence on key decision-makers with specific engagement approaches
-    - **Value Quantification:** Include specific ROI potential and business case elements
-    - **Tactical Clarity:** Offer concrete next steps with timing and success metrics
-
-    **SEARCH OPTIMIZATION TECHNIQUES:**
-    - Use exact company names and decision-maker names for precision
-    - Combine multiple search terms to find specific competitive intelligence
-    - Target industry-specific publications and vendor announcement platforms
-    - Search for case studies and success stories in similar organizations
-    - Look for recent news, press releases, and partnership announcements
-
-    Your output must be the complete, enhanced sales intelligence findings that provide all necessary information for winning competitive sales situations.
+    Your output must be complete, enhanced sales intelligence findings that address all identified gaps and enable immediate sales action.
     """,
     tools=[google_search],
-    output_key="sales_intelligence_findings",
+    output_key="sales_research_findings",
     after_agent_callback=collect_research_sources_callback,
 )
 
-sales_intelligence_report_composer = LlmAgent(
-    model=config.critic_model,
-    name="sales_intelligence_report_composer",
+sales_report_composer = LlmAgent(
+    model=Gemini(
+        model=config.critic_model,
+        retry_options=genai_types.HttpRetryOptions(
+            initial_delay=1,
+            attempts=3
+        )
+    ),
+    name="sales_report_composer",
     include_contents="none",
-    description="Composes comprehensive sales intelligence reports focused on competitive positioning, product-market fit, and actionable deal-winning strategies.",
+    description="Composes comprehensive sales intelligence reports following the standardized 9-section format with proper citations.",
     instruction="""
-    You are an expert sales strategy report writer specializing in competitive intelligence and product-market fit analysis for B2B sales teams.
+    You are an expert sales intelligence report writer specializing in product-organization fit analysis and account-based selling strategy.
 
-    **MISSION:** Transform sales research data into a polished, actionable Sales Intelligence & Competitive Positioning Report that enables winning deals against competitive alternatives.
+    **MISSION:** Transform research data into a polished, professional Sales Intelligence Report following the exact standardized 9-section format.
 
     ---
     ### INPUT DATA SOURCES
-    * Research Plan: `{research_plan}`
-    * Sales Intelligence Findings: `{sales_intelligence_findings}`
+    * Research Plan: `{sales_research_plan}`
+    * Research Findings: `{sales_research_findings}` 
     * Citation Sources: `{sources}`
     * Report Structure: `{sales_report_sections}`
-    * User's Product/Service Context: Available in research plan and findings
 
     ---
-    ### SALES INTELLIGENCE REPORT STANDARDS
+    ### REPORT COMPOSITION STANDARDS
 
-    **1. Competitive Focus:**
-    - **Current State Analysis:** Clearly identify existing vendors and solutions in target organization
-    - **Gap Analysis:** Highlight specific problems current solutions don't address
-    - **Differentiation Strategy:** Define unique value propositions vs. each major competitor
-    - **Displacement Tactics:** Provide specific strategies for competing against existing vendors
-    - **Competitive Threats:** Address potential competitive responses and counter-strategies
+    **1. Format Adherence:**
+    - Follow the exact 9-section structure provided in Report Structure
+    - Create detailed product-organization fit analysis matrices
+    - Include specific stakeholder profiles with contact information where available
+    - Provide actionable next steps and engagement strategies
+    - Use tables and matrices for complex cross-analysis sections
 
-    **2. Stakeholder-Centric Approach:**
-    - **Decision-Maker Profiles:** Detailed backgrounds, priorities, and communication preferences
-    - **Influence Mapping:** Show reporting relationships and decision-making dynamics
-    - **Persona-Specific Messaging:** Customized value propositions for each key stakeholder
-    - **Engagement Strategy:** Specific tactics for reaching and influencing each stakeholder
-    - **Relationship Building:** Identify shared connections and warm introduction opportunities
+    **2. Content Quality:**
+    - **Sales Focus:** Every section must provide actionable sales intelligence
+    - **Account-Based Approach:** Tailor analysis for each specific organization
+    - **Competitive Intelligence:** Thoroughly analyze competitive threats and positioning opportunities
+    - **Stakeholder Mapping:** Identify specific decision-makers, influencers, and champions
+    - **Opportunity Assessment:** Evaluate timing, budget capacity, and buying signals
 
-    **3. Product-Market Fit Quantification:**
-    - **Needs Assessment:** Map user's product capabilities to target's specific challenges
-    - **ROI Projections:** Quantify potential value and business impact where possible
-    - **Implementation Feasibility:** Address integration requirements and adoption barriers
-    - **Success Metrics:** Define measurable outcomes and performance improvements
-    - **Business Case Framework:** Provide elements for building compelling ROI arguments
+    **3. Sales Intelligence Priorities:**
+    Each section should enable sales action:
+    - Executive Summary: Clear opportunity prioritization and risk assessment
+    - Product Overview: Value propositions tailored to discovered organizational needs
+    - Organization Profiles: Detailed stakeholder maps and business priorities
+    - Fit Analysis: Specific product-organization combinations with success probability
+    - Competitive Landscape: Threat assessment and differentiation strategies
+    - Engagement Strategy: Specific outreach plans and messaging themes
+    - Action Plan: Time-bound, executable next steps for each opportunity
 
-    **4. Tactical Sales Intelligence:**
-    - **Timing Strategy:** Identify optimal engagement windows and trigger events
-    - **Budget Intelligence:** Document spending patterns, approval processes, and budget availability
-    - **Procurement Process:** Detail vendor selection criteria and decision-making steps
-    - **Risk Mitigation:** Address potential objections and adoption barriers
-    - **Success Milestones:** Define progress markers and deal advancement indicators
-
-    **5. Actionable Recommendations:**
-    Each section must conclude with specific, actionable insights:
-    - **Executive Summary:** Key talking points and primary competitive advantages
-    - **Target Analysis:** Specific pain points to emphasize and business drivers to leverage
-    - **Competitive Positioning:** Exact messaging to differentiate from current solutions
-    - **Stakeholder Intelligence:** Specific outreach tactics and messaging for each decision-maker
-    - **Sales Strategy:** Concrete next steps with timelines and success metrics
-
-    ---
-    ### REPORT QUALITY STANDARDS
-
-    **Competitive Intelligence Quality:**
-    - Identify at least 2-3 existing vendors/solutions in the target organization
-    - Provide specific differentiation points vs. each major competitor
-    - Include contract status, satisfaction levels, and switching cost analysis
-    - Offer concrete strategies for competitive displacement
-
-    **Stakeholder Intelligence Depth:**
-    - Identify 3-5 key decision-makers with background and contact information
-    - Map decision-making process and approval hierarchy
-    - Provide personalized messaging and engagement strategies
-    - Include relationship mapping and warm introduction opportunities
-
-    **Product-Market Fit Assessment:**
-    - Quantify value potential with specific ROI projections where possible
-    - Address implementation requirements and integration challenges
-    - Provide success metrics and performance improvement potential
-    - Include business case elements and compelling value narratives
-
-    **Sales Strategy Actionability:**
-    - Offer specific next steps with concrete timelines
-    - Include messaging frameworks for different sales situations
-    - Provide objection handling and competitive response strategies
-    - Define success metrics and deal advancement indicators
+    **4. Cross-Analysis Requirements:**
+    - Create detailed Product-Organization Fit matrix tables
+    - Map competitive landscape for each organization-product combination
+    - Provide stakeholder influence/interest matrices where possible
+    - Include budget and timing assessments for each opportunity
 
     ---
     ### CRITICAL CITATION REQUIREMENTS
     **Citation Format:** Use ONLY `<cite source="src-ID_NUMBER" />` tags immediately after claims
-    **Priority Citation Areas:**
-    - All competitive intelligence and vendor information
-    - Decision-maker background and contact information
-    - Financial data, budget information, and ROI projections
-    - Timing indicators, trigger events, and opportunity signals
-    - Specific pain points, challenges, and strategic initiatives
-    - Technology stack information and vendor relationships
-    - **Citation Format:** You MUST add `<cite source="src-ID_NUMBER" />` immediately after EVERY fact, statistic, company name, or claim that is supported by a source in `{sources}`.
-    - Use the `src-ID` exactly as provided in `{sources}`. Do NOT invent IDs.
-    - Failure to include `<cite>` tags will be considered an incomplete report.
+    **Citation Strategy:**
+    - Cite all competitive intelligence and market positioning claims
+    - Cite financial data, budget indicators, and procurement information
+    - Cite stakeholder information and organizational structure details
+    - Cite technology stack information and vendor relationships
+    - Cite customer testimonials and product review data
+    - Do NOT include a separate References section - all citations must be inline
 
     ---
-    ### COMPETITIVE POSITIONING EMPHASIS
-    
-    **Direct Competitive Analysis:**
-    - For each identified current vendor/solution, provide specific comparison points
-    - Highlight unique capabilities your user's product offers that competitors lack
-    - Address pricing differentiation and value-based selling opportunities
-    - Include specific messaging to counter competitor strengths
+    ### MODULAR STRUCTURE REQUIREMENTS
+    - Design sections to accommodate multiple products and organizations
+    - Use consistent formatting for product and organization profiles
+    - Create reusable templates for stakeholder profiles
+    - Ensure additional entities can be added without structural changes
 
-    **Displacement Strategy Framework:**
-    - Identify dissatisfaction points with current solutions
-    - Provide specific questions to uncover competitor weaknesses
-    - Offer proof points and case studies for competitive differentiation
-    - Include implementation and transition advantages
+    **FINAL QUALITY CHECKS:**
+    - Verify comprehensive product-organization fit analysis coverage
+    - Confirm actionable stakeholder engagement strategies
+    - Check competitive intelligence completeness and accuracy
+    - Validate specific next steps and timing recommendations
+    - Ensure professional tone suitable for sales team execution
 
-    **Market Positioning:**
-    - Position user's solution within the target's existing technology ecosystem
-    - Address integration capabilities and compatibility advantages
-    - Highlight scalability and future-proofing benefits
-    - Emphasize unique industry expertise or specialization
-
-    ---
-    ### FINAL QUALITY VALIDATION
-    - Ensure report provides actionable competitive intelligence for each target organization
-    - Verify stakeholder-specific messaging and engagement strategies are included
-    - Confirm product-market fit assessment includes quantified value propositions
-    - Validate tactical recommendations include specific timelines and next steps
-    - Check that competitive positioning directly addresses existing vendor alternatives
-
-    Generate a comprehensive sales intelligence report that enables winning competitive deals through superior preparation and strategic positioning.
+    Generate a comprehensive sales intelligence report that enables immediate account-based selling execution.
     """,
     output_key="final_cited_report",
     after_agent_callback=citation_replacement_callback,
 )
 
-# --- SALES INTELLIGENCE PIPELINE ---
+# --- UPDATED PIPELINE ---
 sales_intelligence_pipeline = SequentialAgent(
     name="sales_intelligence_pipeline",
-    description="Executes comprehensive sales intelligence research focused on competitive positioning and product-market fit analysis for target organizations.",
+    description="Executes comprehensive sales intelligence research following the 5-phase methodology for product-organization fit analysis.",
     sub_agents=[
         sales_section_planner,
-        sales_intelligence_researcher,
+        sales_researcher,
         LoopAgent(
             name="sales_quality_assurance_loop",
             max_iterations=config.max_search_iterations,
             sub_agents=[
-                sales_intelligence_evaluator,
+                sales_evaluator,
                 SalesEscalationChecker(name="sales_escalation_checker"),
-                enhanced_sales_intelligence_search,
+                enhanced_sales_search,
             ],
         ),
-        sales_intelligence_report_composer,
+        sales_report_composer,
     ],
 )
 
-# --- MAIN SALES INTELLIGENCE AGENT ---
+# --- UPDATED MAIN AGENT ---
 sales_intelligence_agent = LlmAgent(
     name="sales_intelligence_agent",
-    model=config.worker_model,
-    description="Specialized sales intelligence assistant that analyzes target organizations in the context of specific product offerings to generate competitive positioning strategies and actionable sales approaches.",
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(
+            initial_delay=1,
+            attempts=3
+        )
+    ),
+    description="Specialized sales intelligence assistant that creates comprehensive product-organization fit analysis reports for account-based selling.",
     instruction=f"""
-    You are a specialized Sales Intelligence Assistant focused on competitive analysis and product-market fit assessment for B2B sales teams.
+    You are a specialized Sales Intelligence Assistant focused on comprehensive product-organization fit analysis for account-based selling and strategic sales planning.
 
     **CORE MISSION:**
-    Analyze target organizations specifically in the context of the user's product/service to generate actionable sales intelligence that enables winning deals against competitive alternatives.
-
-    **REQUIRED INPUTS:**
-    Users must provide:
-    1. **Target Organization(s):** One or more company names to research for sales opportunities
-    2. **Product/Service Description:** Detailed description of what the user sells, including key features, benefits, and target use cases
-    3. **Company Information:** User's company background, competitive positioning, and unique value propositions
+    Convert ANY user request about products and target organizations into a systematic research plan that generates actionable sales intelligence through:
+    - Product competitive analysis and value proposition mapping
+    - Organizational structure and stakeholder identification
+    - Technology landscape and vendor relationship analysis
+    - Product-organization fit assessment and opportunity prioritization
+    - Sales engagement strategy and action plan development
 
     **CRITICAL WORKFLOW RULE:**
-    NEVER provide generic organizational research. Your ONLY first action is to use `sales_plan_generator` to create a sales intelligence research plan that analyzes targets through the lens of the user's specific offering.
+    NEVER answer sales questions directly. Your ONLY first action is to use `sales_plan_generator` to create a research plan.
 
-    **Your 3-Step Sales Intelligence Process:**
+    **INPUT PROCESSING:**
+    You will receive requests in various formats:
+    - "Research [Company A, Company B] for selling [Product X, Product Y]"
+    - "Analyze fit between our [Product] and [Organization]"
+    - "Sales intelligence for [Products] targeting [Organizations]"
+    - Lists of companies and products in any combination
 
-    **1. Sales Intelligence Planning:**
-    Use `sales_plan_generator` to create a 4-phase research plan covering:
-    - **Target Organization Deep Dive:** Business model, pain points, current technology stack, decision processes
-    - **Competitive Landscape Analysis:** Existing vendors, solution satisfaction, contract status, competitive gaps
-    - **Stakeholder & Decision-Maker Intelligence:** Key personnel, backgrounds, influence networks, engagement strategies
-    - **Sales Strategy & Positioning:** Budget cycles, buying patterns, product-market fit, messaging frameworks
+    **Your 3-Step Process:**
+    1. **Plan Generation:** Use `sales_plan_generator` to create a 5-phase research plan covering:
+       - Product Intelligence (competitive landscape, value props, customer success)
+       - Organization Intelligence (structure, priorities, decision-makers)
+       - Technology & Vendor Landscape (current solutions, gaps, procurement)
+       - Stakeholder Mapping (decision-makers, influencers, champions)
+       - Competitive & Risk Assessment (threats, obstacles, timing)
 
-    **2. Plan Customization:**
-    Based on the product and target organization information provided, refine the research focus based on:
-    - **Competitive Priorities:** Which existing vendors/solutions to focus on
-    - **Stakeholder Focus:** Which roles and departments to prioritize
-    - **Sales Objectives:** Deal timeline, revenue targets, strategic importance
-    - **Product Positioning:** Key differentiators and value propositions to emphasize
+    2. **Plan Refinement:** Automatically adjust the plan to ensure:
+       - Complete product-organization cross-analysis coverage
+       - Stakeholder identification and contact research
+       - Competitive intelligence and incumbent solution mapping
+       - Budget capacity and procurement timeline assessment
+       - Sales engagement strategy development
 
-    **3. Intelligence Execution:**
-    Ensure that the plan is good enough by yourself, then delegate to `sales_intelligence_pipeline` with the created plan.
+    3. **Research Execution:** Delegate to `sales_intelligence_pipeline` with the plan.
 
     **RESEARCH FOCUS AREAS:**
-
-    **Competitive Intelligence:**
-    - Current vendors and solutions already serving target organization
-    - Vendor satisfaction levels, contract terms, and renewal timelines
-    - Solution gaps and unmet needs that create opportunities
-    - Competitive differentiation points and unique value propositions
-
-    **Stakeholder Mapping:**
-    - Key decision-makers, influencers, and budget holders with contact information
-    - Individual backgrounds, priorities, and professional interests
-    - Decision-making processes, approval hierarchies, and influence networks
-    - Communication preferences and optimal engagement strategies
-
-    **Product-Market Fit Analysis:**
-    - Alignment between user's solution and target's specific needs
-    - ROI potential and quantified value creation opportunities
-    - Implementation requirements and integration considerations
-    - Success metrics and performance improvement potential
-
-    **Sales Strategy Intelligence:**
-    - Optimal timing for outreach based on budget cycles and trigger events
-    - Customized messaging frameworks for different stakeholder personas
-    - Competitive positioning strategies against existing alternatives
-    - Tactical recommendations with concrete next steps and timelines
+    - **Product Analysis:** Competitive positioning, value propositions, customer success metrics
+    - **Organization Analysis:** Decision-makers, business priorities, technology gaps
+    - **Fit Assessment:** Product-organization compatibility matrices and opportunity scoring  
+    - **Competitive Intelligence:** Incumbent solutions, vendor relationships, competitive threats
+    - **Sales Strategy:** Stakeholder engagement plans, messaging themes, timing considerations
+    - **Risk Assessment:** Budget constraints, competitive entrenchment, cultural fit challenges
 
     **OUTPUT EXPECTATIONS:**
-    The final research produces a comprehensive Sales Intelligence & Competitive Positioning Report with 11 specialized sections:
+    The final research will produce a comprehensive Sales Intelligence Report with 9 standardized sections:
+    1. Executive Summary (opportunities, risks, priorities)
+    2. Product Overview(s) (value props, differentiators, use cases)
+    3. Target Organization Profiles (structure, priorities, vendor landscape)
+    4. Product–Organization Fit Analysis (cross-matrix with scores)
+    5. Competitive Landscape (per organization analysis)
+    6. Stakeholder Engagement Strategy (who, how, when)
+    7. Risks & Red Flags (obstacles and mitigation)
+    8. Next Steps & Action Plan (immediate, medium, long-term)
+    9. Appendices (detailed profiles, contacts, references)
 
-    1. **Executive Summary** - Key findings and recommended approach
-    2. **Target Organization Analysis** - Business model, challenges, technology stack
-    3. **Current Solution Landscape** - Existing vendors, satisfaction, gaps
-    4. **Competitive Positioning Analysis** - Direct comparison and differentiation strategy
-    5. **Stakeholder Intelligence** - Decision-maker profiles and engagement strategies
-    6. **Product-Market Fit Assessment** - Value alignment and ROI potential
-    7. **Sales Opportunity Analysis** - Timing, budget, deal potential
-    8. **Messaging & Value Proposition Strategy** - Stakeholder-specific messaging
-    9. **Engagement Strategy & Tactics** - Concrete outreach and relationship-building plans
-    10. **Implementation Roadmap** - 30-60-90 day action plan
-    11. **Risk Assessment & Mitigation** - Competitive threats and contingency planning
-
-    **COMPETITIVE ADVANTAGE:**
-    Unlike generic company research, this sales intelligence specifically focuses on:
-    - How your product solves problems current vendors don't address
-    - Which decision-makers to target and how to reach them effectively
-    - What messaging will resonate with each stakeholder persona
-    - How to position against existing competitive alternatives
-    - When and how to engage for maximum deal-winning potential
+    **AUTOMATIC EXECUTION:**
+    You will proceed immediately with research without asking for approval or clarification unless the input is completely ambiguous. Generate comprehensive sales intelligence suitable for immediate account-based selling execution.
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
 
-    Remember: Plan → Customize → Execute. Always start with sales intelligence planning that positions the user's product competitively against existing alternatives in target organizations.
+    Remember: Plan → Execute → Deliver. Always delegate to the specialized research pipeline for complete sales intelligence generation.
     """,
     sub_agents=[sales_intelligence_pipeline],
     tools=[AgentTool(sales_plan_generator)],
     output_key="sales_research_plan",
 )
 
-root_agent = sales_intelligence_agent
+# root_agent = sales_intelligence_agent

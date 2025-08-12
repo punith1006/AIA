@@ -12,6 +12,7 @@ from google.adk.planners import BuiltInPlanner
 from google.adk.tools import google_search
 from google.adk.tools.agent_tool import AgentTool
 from google.genai import types as genai_types
+from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
 from .config import config
@@ -129,17 +130,17 @@ def citation_replacement_callback(
     references = "\n\n## References\n"
     for short_id, idx in sorted(short_id_to_index.items(), key=lambda x: x[1]):
         source_info = sources[short_id]
+        domain = source_info.get('domain', '')  # Get domain safely
         references += (
             f"<p id=\"ref{idx}\">[{idx}] "
-            f"<a href=\"{source_info['url']}\">{source_info['title']}</a> "
-            f"({source_info['domain']})</p>\n"
+            f"<a href=\"{source_info['url']}\">{source_info['title']}</a>"
+            f"{f' ({domain})' if domain else ''}</p>\n"  # Fixed: use 'domain' variable
         )
 
     processed_report += references
 
     callback_context.state["final_report_with_citations"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
-
 
 
 
@@ -168,7 +169,14 @@ class EscalationChecker(BaseAgent):
 
 # --- ENHANCED AGENT DEFINITIONS ---
 organizational_plan_generator = LlmAgent(
-    model=config.worker_model,
+    model = Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(
+        initial_delay=1,
+        attempts=3
+       
+        )
+    ),
     name="organizational_plan_generator",
     description="Generates comprehensive organizational research plans focused on company intelligence, social media presence, and market positioning.",
     instruction=f"""
@@ -232,11 +240,19 @@ organizational_plan_generator = LlmAgent(
     
     Focus on creating plans that will generate sales-relevant intelligence about organizations.
     """,
+    output_key="research_plan",
     tools=[google_search],
 )
 
 organizational_section_planner = LlmAgent(
-    model=config.worker_model,
+    model = Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(
+        initial_delay=1,
+        attempts=3
+       
+        )
+    ),
     name="organizational_section_planner",
     description="Creates a structured report outline following the standardized organizational research format.",
     instruction="""
@@ -320,7 +336,14 @@ organizational_section_planner = LlmAgent(
 )
 
 organizational_researcher = LlmAgent(
-    model=config.worker_model,
+    model = Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(
+        initial_delay=1,
+        attempts=3
+       
+        )
+    ),
     name="organizational_researcher",
     description="Specialized organizational intelligence researcher focusing on company websites, social media, and public perception analysis.",
     planner=BuiltInPlanner(
@@ -418,7 +441,14 @@ organizational_researcher = LlmAgent(
 )
 
 organizational_evaluator = LlmAgent(
-    model=config.critic_model,
+    model = Gemini(
+        model=config.critic_model,
+        retry_options=genai_types.HttpRetryOptions(
+        initial_delay=1,
+        attempts=3
+       
+        )
+    ),
     name="organizational_evaluator",
     description="Evaluates organizational research completeness and identifies intelligence gaps for sales-focused company analysis.",
     instruction=f"""
@@ -484,7 +514,14 @@ organizational_evaluator = LlmAgent(
 )
 
 enhanced_organizational_search = LlmAgent(
-    model=config.worker_model,
+    model = Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(
+        initial_delay=1,
+        attempts=3
+       
+        )
+    ),
     name="enhanced_organizational_search",
     description="Executes targeted follow-up searches to fill organizational intelligence gaps identified by the evaluator.",
     planner=BuiltInPlanner(
@@ -540,7 +577,14 @@ enhanced_organizational_search = LlmAgent(
 )
 
 organizational_report_composer = LlmAgent(
-    model=config.critic_model,
+    model = Gemini(
+        model=config.critic_model,
+        retry_options=genai_types.HttpRetryOptions(
+        initial_delay=1,
+        attempts=3
+       
+        )
+    ),
     name="organizational_report_composer",
     include_contents="none",
     description="Composes comprehensive organizational intelligence reports following the standardized business research format with proper citations.",
@@ -635,7 +679,14 @@ organizational_research_pipeline = SequentialAgent(
 # --- UPDATED MAIN AGENT ---
 organizational_intelligence_agent = LlmAgent(
     name="organizational_intelligence_agent",
-    model=config.worker_model,
+    model = Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(
+        initial_delay=1,
+        attempts=3
+       
+        )
+    ),
     description="Specialized organizational research assistant that creates comprehensive company intelligence reports for sales and business development.",
     instruction=f"""
     You are a specialized Organizational Intelligence Assistant focused on comprehensive company research for sales and business development purposes.
@@ -657,13 +708,13 @@ organizational_intelligence_agent = LlmAgent(
        - Deep Dive Investigation (technology, partnerships, customer feedback)
        - Risk & Opportunity Assessment (controversies, financial health, buying signals)
 
-    2. **Plan Refinement:** Collaborate with user to refine the plan based on their specific needs:
+    2. **Plan Refinement:** Ensure the plan accomplishes the following:
        - Adjust focus areas (financial vs. competitive vs. reputation)
        - Modify scope (single company vs. multiple companies)
        - Customize deliverables (specific report sections, analysis depth)
        - Set research priorities based on sales objectives
 
-    3. **Research Execution:** Once user provides EXPLICIT approval (e.g., "approved", "looks good, execute", "run the research"), delegate to `organizational_research_pipeline` with the approved plan.
+    3. **Research Execution:** Delegate to `organizational_research_pipeline` with the plan.
 
     **RESEARCH FOCUS AREAS:**
     - **Company Intelligence:** Official information, business model, leadership team
@@ -685,4 +736,4 @@ organizational_intelligence_agent = LlmAgent(
     output_key="research_plan",
 )
 
-root_agent = organizational_intelligence_agent
+# root_agent = organizational_intelligence_agent
