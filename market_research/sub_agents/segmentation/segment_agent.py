@@ -130,7 +130,7 @@ def wikipedia_citation_replacement_callback(callback_context: CallbackContext) -
             references_section += f'<a id="ref{citation_num}"></a>[{citation_num}] [{citation["title"]}]({citation["url"]}) - {citation["domain"]}\n\n'
         processed_report += references_section
     
-    callback_context.state["final_report_with_citations"] = processed_report
+    callback_context.state["segmentation_intelligence_agent"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
 
 # --- Custom Agent for Loop Control ---
@@ -159,7 +159,7 @@ segmentation_plan_generator = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -231,7 +231,7 @@ segmentation_section_planner = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -287,7 +287,7 @@ segmentation_researcher = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -354,7 +354,7 @@ segmentation_evaluator = LlmAgent(
     model=Gemini(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -413,7 +413,7 @@ enhanced_segmentation_search = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -475,7 +475,7 @@ segmentation_report_composer = LlmAgent(
     model=Gemini(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -569,7 +569,7 @@ segmentation_intelligence_agent = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )

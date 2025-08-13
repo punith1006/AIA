@@ -22,13 +22,49 @@ sales_intelligence_agent.output_key = "sales_intelligence_agent"
 prospect_researcher.output_key = "prospect_researcher"
 
 # ----------------------------------------------------------------------
+# User Input Analyzer
+# ----------------------------------------------------------------------
+user_input_analyzer = LlmAgent(
+    name="user_input_analyzer",
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+    ),
+    description="Analyzes user input to determine if specific target organizations are mentioned.",
+    instruction="""
+        Analyze the user input to determine if they have mentioned specific organizations/companies they want to target.
+        
+        Look for:
+        - Direct mentions of target companies (e.g., "we want to target IBM and Oracle")
+        - Named organizations they want to sell to
+        
+        Do NOT consider these as specific organizations:
+        - General industry references (e.g., "tech companies", "healthcare organizations")
+        - Market segments (e.g., "enterprise customers", "small businesses") 
+        - Geographic references (e.g., "companies in Silicon Valley")
+        - Company types without names (e.g., "SaaS companies", "manufacturing firms")
+        - Size descriptors (e.g., "Fortune 500", "startups", "mid-market")
+        
+        Output ONLY a JSON object:
+        {
+            "has_target_organizations": true/false,
+            "organizations_mentioned": ["Company1", "Company2"],
+            "needs_sales_intelligence": true/false
+        }
+        
+        Set needs_sales_intelligence to true only if has_target_organizations is true.
+    """,
+    output_key="user_analysis"
+)
+
+# ----------------------------------------------------------------------
 # Initial project creation agent
 # ----------------------------------------------------------------------
 project_creator = LlmAgent(
     name="project_creator",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
     ),
     description="Creates a blank MongoDB project document using the provided project ID.",
     instruction="""
@@ -47,7 +83,7 @@ market_prompt_builder = LlmAgent(
     name="market_prompt_builder",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
     ),
     description="Generates JSON input for market_intelligence_agent from user input.",
     instruction="""
@@ -69,7 +105,7 @@ segmentation_prompt_builder = LlmAgent(
     name="segmentation_prompt_builder",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
     ),
     description="Generates JSON input for segmentation_intelligence_agent using user input and market intelligence report.",
     instruction="""
@@ -95,7 +131,7 @@ org_prompt_builder = LlmAgent(
     name="org_prompt_builder",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
     ),
     description="Generates JSON input for organizational_intelligence_agent using user input and previous reports.",
     instruction="""
@@ -130,21 +166,31 @@ org_prompt_builder = LlmAgent(
     output_key="org_agent_input"
 )
 
-sales_prompt_builder = LlmAgent(
-    name="sales_prompt_builder",
+# ----------------------------------------------------------------------
+# CONDITIONAL SALES INTELLIGENCE AGENTS
+# ----------------------------------------------------------------------
+conditional_sales_prompt_builder = LlmAgent(
+    name="conditional_sales_prompt_builder",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
     ),
-    description="Generates JSON input for sales_intelligence_agent using user input and previous reports.",
+    description="Conditionally generates JSON input for sales_intelligence_agent or passes through empty result.",
     instruction="""
-        Using the user input and all previous intelligence reports (market, segmentation, organizational), create a JSON object for sales intelligence research.
+        Check the user analysis: {user_analysis}
         
+        If the user_analysis shows "needs_sales_intelligence": true, then create a JSON object for sales intelligence research using the user input and previous reports.
+        
+        If "needs_sales_intelligence": false, output exactly: {{"skip_sales": true}}
+        
+        When creating sales intelligence input (needs_sales_intelligence is true):
+        
+        User Analysis: {user_analysis}
         Market Intelligence Report: {market_intelligence_agent}
         Segmentation Report: {segmentation_intelligence_agent}
         Organizational Report: {organizational_intelligence_agent}
         
-        Output ONLY a valid JSON object in the following format. Do not include any extra text or commentary.
+        Output a valid JSON object:
         {
             "products": [
                 {
@@ -155,64 +201,123 @@ sales_prompt_builder = LlmAgent(
             ],
             "target_organizations": [
                 {
-                    "name": "Organization name from organizational intelligence report",
+                    "name": "Organization name from user_analysis.organizations_mentioned",
                     "industry": "Industry from market analysis",
-                    "context": "Context from segmentation and organizational reports about why this organization is a good target"
+                    "context": "Context about why this organization is a target"
                 }
             ],
-            "research_objectives": "Specific research objectives based on the market context, segmentation insights, and organizational intelligence findings. Focus on understanding adoption patterns, decision-makers, and competitive positioning."
+            "research_objectives": "Research objectives focused on the specific organizations mentioned by the user"
         }
         
-        Leverage insights from all previous reports to identify the most promising target organizations and define focused research objectives.
-        The research objectives should be specific and actionable based on the intelligence gathered so far.
+        Use the organizations_mentioned from user_analysis as the primary targets.
     """,
     output_key="sales_agent_input"
 )
 
+conditional_sales_intelligence_agent = LlmAgent(
+    name="conditional_sales_intelligence_agent",
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+    ),
+    description="Conditionally executes sales intelligence research or skips if no specific targets identified.",
+    instruction="""
+        Check the sales_agent_input: {sales_agent_input}
+        
+        If sales_agent_input contains "skip_sales": true, then output exactly:
+        {{"skipped": true, "reason": "No specific target organizations identified in user input"}}
+        
+        Otherwise, execute sales intelligence research using the provided input and the original sales_intelligence_agent logic.
+        
+        When executing (not skipping):
+        Use the sales_agent_input to conduct detailed sales intelligence research on the specified target organizations.
+        Focus on understanding their business needs, decision-making processes, competitive landscape, and how your product/service could address their challenges.
+        Provide actionable insights for sales and business development teams.
+        
+        Analyze each target organization's:
+        - Current business challenges and pain points
+        - Technology stack and existing solutions
+        - Decision-making hierarchy and key stakeholders
+        - Budget and procurement processes
+        - Recent business developments and strategic initiatives
+        - Competitive positioning and market presence
+        
+        Output a comprehensive sales intelligence report with specific, actionable recommendations for approaching each target organization.
+    """,
+    output_key="sales_intelligence_agent"
+)
+
+conditional_sales_storage_agent = LlmAgent(
+    name="conditional_sales_storage_agent",
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+    ),
+    description="Conditionally stores sales intelligence report to MongoDB or skips storage.",
+    instruction="""
+        Check the sales intelligence report: {sales_intelligence_agent}
+        
+        If the report contains "skipped": true, then respond with: "Sales intelligence skipped - no storage needed"
+        
+        Otherwise, store the sales intelligence report to MongoDB:
+        - Use the project_id from the initial input
+        - Use the sales intelligence report content  
+        - Use report_type: "target_org_research"
+        
+        After storing, respond with: "Sales intelligence report stored successfully"
+    """,
+    tools=[update_project_report],
+    output_key="sales_stored"
+)
+
+# ----------------------------------------------------------------------
+# Modified Prospect Research (handles optional sales intelligence)
+# ----------------------------------------------------------------------
 prospect_prompt_builder = LlmAgent(
     name="prospect_prompt_builder",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
     ),
-    description="Generates JSON input for prospect_researcher using user input and all previous reports.",
+    description="Generates JSON input for prospect_researcher using all available reports.",
     instruction="""
-        Using the user input and all previous intelligence reports (market, segmentation, organizational, sales), create a JSON object for prospect research.
+        Using the user input and all available intelligence reports, create a JSON object for prospect research.
         
+        User Analysis: {user_analysis}
         Market Intelligence Report: {market_intelligence_agent}
         Segmentation Report: {segmentation_intelligence_agent}
         Organizational Report: {organizational_intelligence_agent}
         Sales Intelligence Report: {sales_intelligence_agent}
         
+        Note: Sales intelligence may be skipped if no specific targets were identified.
         
-        Output ONLY a valid JSON object in the following format. Do not include any extra text or commentary.
+        Output ONLY a valid JSON object:
         {
             "products_services": [
                 {
                     "name": "Product name from previous analysis",
-                    "description": "Comprehensive description incorporating insights from market analysis, segmentation findings, and organizational intelligence about features, benefits, use cases, and target market."
+                    "description": "Comprehensive description incorporating all available insights"
                 }
             ],
-            "company_information": "Background about the company based on organizational intelligence, market positioning from market analysis, and competitive context from all previous reports.",
-            "known_competitors": ["List of competitors identified through organizational intelligence and market analysis"]
+            "company_information": "Background about the company based on available intelligence",
+            "known_competitors": ["List of competitors from organizational intelligence"],
+            "target_context": "Additional context from sales intelligence if available, or general market context if sales intelligence was skipped"
         }
         
-        Synthesize all previous intelligence to create the most comprehensive and accurate prospect research input.
-        The product descriptions should reflect the market context, target segments, and competitive landscape identified in earlier reports.
-        Company information should incorporate organizational insights and market positioning analysis.
-        Known competitors should be based on findings from the organizational intelligence report.
+        If sales intelligence was skipped (contains "skipped": true), focus on general market and organizational insights.
+        If sales intelligence is available, incorporate those specific target insights.
     """,
     output_key="prospect_agent_input"
 )
 
 # ----------------------------------------------------------------------
-# Storage Agents
+# Storage Agents (unchanged)
 # ----------------------------------------------------------------------
 market_storage_agent = LlmAgent(
     name="market_storage_agent",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
     ),
     description="Stores market intelligence report to MongoDB",
     instruction="""
@@ -235,7 +340,7 @@ segmentation_storage_agent = LlmAgent(
     name="segmentation_storage_agent",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
     ),
     description="Stores segmentation intelligence report to MongoDB",
     instruction="""
@@ -258,7 +363,7 @@ org_storage_agent = LlmAgent(
     name="org_storage_agent",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
     ),
     description="Stores organizational intelligence report to MongoDB",
     instruction="""
@@ -277,34 +382,11 @@ org_storage_agent = LlmAgent(
     output_key="org_stored"
 )
 
-sales_storage_agent = LlmAgent(
-    name="sales_storage_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
-    ),
-    description="Stores sales intelligence report to MongoDB",
-    instruction="""
-        Store the sales intelligence report to MongoDB.
-        
-        Use the project_id from the initial input and the sales intelligence report: {sales_intelligence_agent}
-        
-        Use the update_project_report tool with:
-        - project_id: the ID from user input
-        - report: the sales intelligence report content
-        - report_type: "target_org_research"
-        
-        After storing, respond with: "Sales intelligence report stored successfully"
-    """,
-    tools=[update_project_report],
-    output_key="sales_stored"
-)
-
 prospect_storage_agent = LlmAgent(
     name="prospect_storage_agent",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
     ),
     description="Stores prospect research report to MongoDB",
     instruction="""
@@ -324,40 +406,43 @@ prospect_storage_agent = LlmAgent(
 )
 
 # ----------------------------------------------------------------------
-# Final Sequential Agent
+# Working Sequential Agent with Conditional Logic
 # ----------------------------------------------------------------------
 comprehensive_intelligence_chancellor = SequentialAgent(
     name="comprehensive_intelligence_chancellor",
     description="""
-        Runs a comprehensive intelligence analysis pipeline with MongoDB storage:
+        Runs a comprehensive intelligence analysis pipeline with conditional sales intelligence:
         
-        1. Creates blank project document in MongoDB
-        2. Market Intelligence Analysis → Store to market_context
-        3. Market Segmentation Analysis → Store to market_segment
-        4. Organizational Intelligence Research → Store to client_org_research
-        5. Sales Intelligence Research → Store to target_org_research
-        6. Prospect Research → Store to prospect_research
+        1. Analyze user input for specific target organizations
+        2. Create blank project document in MongoDB
+        3. Market Intelligence Analysis → Store to market_context
+        4. Market Segmentation Analysis → Store to market_segment  
+        5. Organizational Intelligence Research → Store to client_org_research
+        6. [CONDITIONAL] Sales Intelligence Research → Store to target_org_research
+           - Only executes if user specified particular organizations (e.g., "target Microsoft and Google")
+           - Skips if user only mentioned general categories (e.g., "target tech companies")
+        7. Prospect Research → Store to prospect_research (adapts based on whether sales intelligence ran)
         
-        Each step builds on the insights from previous steps to avoid hallucination and ensure coherent analysis.
-        All reports are automatically stored in MongoDB after generation.
+        The conditional logic is implemented through agents that check previous outputs and decide whether to execute or skip their functionality.
     """,
     sub_agents=[
-        project_creator,
-        market_prompt_builder,
-        market_intelligence_agent,
-        market_storage_agent,
-        segmentation_prompt_builder,
-        segmentation_intelligence_agent,
-        segmentation_storage_agent,
-        org_prompt_builder,
-        organizational_intelligence_agent,
-        org_storage_agent,
-        sales_prompt_builder,
-        sales_intelligence_agent,
-        sales_storage_agent,
-        prospect_prompt_builder,
-        prospect_researcher,
-        prospect_storage_agent
+        user_input_analyzer,                    # Analyze input for specific organizations
+        project_creator,                        # Create project
+        market_prompt_builder,                  # Build market prompt
+        market_intelligence_agent,              # Execute market intelligence
+        market_storage_agent,                   # Store market report
+        segmentation_prompt_builder,            # Build segmentation prompt
+        segmentation_intelligence_agent,        # Execute segmentation
+        segmentation_storage_agent,             # Store segmentation report
+        org_prompt_builder,                     # Build org prompt
+        organizational_intelligence_agent,      # Execute org intelligence
+        org_storage_agent,                      # Store org report
+        conditional_sales_prompt_builder,       # Conditionally build sales prompt OR skip
+        conditional_sales_intelligence_agent,   # Conditionally execute sales intelligence OR skip
+        conditional_sales_storage_agent,        # Conditionally store sales report OR skip
+        prospect_prompt_builder,                # Build prospect prompt (handles optional sales data)
+        prospect_researcher,                    # Execute prospect research
+        prospect_storage_agent                  # Store prospect report
     ]
 )
 

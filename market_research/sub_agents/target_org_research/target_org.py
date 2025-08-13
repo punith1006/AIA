@@ -157,7 +157,7 @@ def citation_replacement_callback(
 
     processed_report += references
 
-    callback_context.state["final_report_with_citations"] = processed_report
+    callback_context.state["sales_intelligence_agent"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
 
 
@@ -189,7 +189,7 @@ sales_plan_generator = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
+            initial_delay=3,
             attempts=3
         )
     ),
@@ -297,7 +297,7 @@ sales_section_planner = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
+            initial_delay=3,
             attempts=3
         )
     ),
@@ -396,7 +396,7 @@ sales_researcher = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
+            initial_delay=3,
             attempts=3
         )
     ),
@@ -514,7 +514,7 @@ sales_evaluator = LlmAgent(
     model=Gemini(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
+            initial_delay=3,
             attempts=3
         )
     ),
@@ -595,7 +595,7 @@ enhanced_sales_search = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
+            initial_delay=3,
             attempts=3
         )
     ),
@@ -657,7 +657,7 @@ sales_report_composer = LlmAgent(
     model=Gemini(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
+            initial_delay=3,
             attempts=3
         )
     ),
@@ -766,7 +766,7 @@ sales_intelligence_agent = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
+            initial_delay=3,
             attempts=3
         )
     ),

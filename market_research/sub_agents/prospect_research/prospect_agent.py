@@ -180,7 +180,7 @@ consolidated_persona_researcher = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=1,
+	    initial_delay=3,
 	    attempts=3
 	    
 	    )
@@ -262,7 +262,7 @@ persona_research_evaluator = LlmAgent(
     model=Gemini(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=1,
+	    initial_delay=3,
 	    attempts=3
 	    
 	    )
@@ -333,7 +333,7 @@ enhanced_persona_search = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=1,
+	    initial_delay=3,
 	    attempts=3
 	    
 	    )
@@ -391,7 +391,7 @@ persona_data_generator = LlmAgent(
     model=Gemini(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=1,
+	    initial_delay=3,
 	    attempts=3
 	    
 	    )
@@ -463,7 +463,7 @@ apollo_parameter_generator = LlmAgent(
     model=Gemini(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=1,
+	    initial_delay=3,
 	    attempts=3
 	    
 	    )
@@ -553,7 +553,7 @@ prospect_researcher = LlmAgent(
     model=Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=1,
+	    initial_delay=3,
 	    attempts=3
 	    
 	    )

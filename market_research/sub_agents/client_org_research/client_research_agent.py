@@ -104,7 +104,7 @@ def citation_replacement_callback(
     callback_context: CallbackContext,
 ) -> genai_types.Content:
     """Replaces citation tags in a report with Wikipedia-style clickable numbered references."""
-    final_report = callback_context.state.get("final_cited_report", "")
+    final_report = callback_context.state.get("organizational_intelligence_agent", "")
     sources = callback_context.state.get("sources", {})
 
     # Assign each short_id a numeric index
@@ -174,7 +174,7 @@ organizational_plan_generator = LlmAgent(
     model = Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -250,7 +250,7 @@ organizational_section_planner = LlmAgent(
     model = Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -341,7 +341,7 @@ organizational_researcher = LlmAgent(
     model = Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -446,7 +446,7 @@ organizational_evaluator = LlmAgent(
     model = Gemini(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -519,7 +519,7 @@ enhanced_organizational_search = LlmAgent(
     model = Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -582,7 +582,7 @@ organizational_report_composer = LlmAgent(
     model = Gemini(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
@@ -654,7 +654,7 @@ organizational_report_composer = LlmAgent(
 
     Generate a comprehensive organizational intelligence report that enables informed sales and business development decision-making.
     """,
-    output_key="final_cited_report",
+    output_key="organizational_intelligence_agent",
     after_agent_callback=citation_replacement_callback,
 )
 
@@ -684,7 +684,7 @@ organizational_intelligence_agent = LlmAgent(
     model = Gemini(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
-        initial_delay=1,
+        initial_delay=3,
         attempts=3
        
         )
