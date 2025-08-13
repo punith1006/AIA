@@ -11,7 +11,7 @@ def create_blank_project(project_id: str):
         raise ValueError("MONGO_DB_CONNECTOR environment variable is not set.")
 
     client = MongoClient(mongo_uri)
-    db = client.get_default_database()
+    db = client["sales_reports"]
     collection = db["projects"]
 
     document = {
@@ -47,7 +47,7 @@ def update_project_report(project_id: str, report: str, report_type: str):
         raise ValueError("MONGO_DB_CONNECTOR environment variable is not set.")
 
     client = MongoClient(mongo_uri)
-    db = client.get_default_database()
+    db = client["sales_reports"]
     collection = db["projects"]
 
     result = collection.update_one(

@@ -12,6 +12,7 @@ from google.adk.planners import BuiltInPlanner
 from google.adk.tools import google_search
 from google.adk.tools.agent_tool import AgentTool
 from google.genai import types as genai_types
+from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
 from .config import config
@@ -158,7 +159,7 @@ def wikipedia_citation_callback(callback_context: CallbackContext) -> genai_type
         logging.warning("[wikipedia_citation_callback] No citations used — returning uncited report.")
 
     # Always store something in state
-    callback_context.state["final_report_with_citations"] = processed_report
+    callback_context.state["market_intelligence_agent"] = processed_report
 
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
     
@@ -181,7 +182,10 @@ class EscalationChecker(BaseAgent):
 
 # --- Agent Definitions ---
 market_plan_generator = LlmAgent(
-    model=config.worker_model,
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+    ),
     name="market_plan_generator",
     description="Generates comprehensive market research plans focused on market context, sizing, and analysis.",
     instruction=f"""
@@ -248,7 +252,10 @@ market_plan_generator = LlmAgent(
 )
 
 market_section_planner = LlmAgent(
-    model=config.worker_model,
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+    ),
     name="market_section_planner",
     description="Creates a structured market analysis report outline following the standardized market research format.",
     instruction="""
@@ -301,7 +308,10 @@ market_section_planner = LlmAgent(
 )
 
 market_researcher = LlmAgent(
-    model=config.worker_model,
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+    ),
     name="market_researcher",
     description="Specialized market research agent focusing on market sizing, industry landscape, ecosystem",
     planner=BuiltInPlanner(
@@ -367,7 +377,10 @@ market_researcher = LlmAgent(
 )
 
 market_evaluator = LlmAgent(
-    model=config.critic_model,
+    model=Gemini(
+        model=config.critic_model,
+        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+    ),
     name="market_evaluator",
     description="Evaluates market research completeness and identifies gaps in market analysis.",
     instruction=f"""
@@ -418,7 +431,10 @@ market_evaluator = LlmAgent(
 )
 
 enhanced_market_search = LlmAgent(
-    model=config.worker_model,
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+    ),
     name="enhanced_market_search",
     description="Performs targeted follow-up searches to fill market research gaps identified by the evaluator.",
     planner=BuiltInPlanner(
@@ -461,7 +477,10 @@ enhanced_market_search = LlmAgent(
 )
 
 market_report_composer = LlmAgent(
-    model=config.critic_model,
+    model=Gemini(
+        model=config.critic_model,
+        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+    ),
     name="market_report_composer",
     description="Composes comprehensive market analysis reports following the standardized format with Wikipedia-style citations.",
     instruction="""
@@ -530,7 +549,7 @@ market_report_composer = LlmAgent(
     
     Generate a complete Market Analysis Report with comprehensive citations to inform strategic decision-making.
     """,
-    output_key="final_cited_report",
+    output_key="market_intelligence_agent",
     after_agent_callback=wikipedia_citation_callback,
 )
 
@@ -556,7 +575,10 @@ market_research_pipeline = SequentialAgent(
 
 market_intelligence_agent = LlmAgent(
     name="market_intelligence_agent",
-    model=config.worker_model,
+    model=Gemini(
+        model=config.worker_model,
+        retry_options=genai_types.HttpRetryOptions(initial_delay=1, attempts=3)
+    ),
     description="Specialized market research assistant that creates comprehensive market analysis reports automatically.",
     instruction=f"""
     You are a specialized Market Intelligence Assistant focused on creating strategic market analyses for product planning.
