@@ -141,7 +141,7 @@ def citation_replacement_callback(
 
     processed_report += references
 
-    callback_context.state["final_report_with_citations"] = processed_report
+    callback_context.state["organizational_intelligence_agent"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
 
 

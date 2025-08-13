@@ -106,7 +106,7 @@ def wikipedia_citation_callback(callback_context: CallbackContext) -> genai_type
     """Replaces citation tags with Wikipedia-style numbered citations and creates references section.
     Now always produces output, even if no citations are found.
     """
-    final_report = callback_context.state.get("final_cited_report", "")
+    final_report = callback_context.state.get("market_intelligence_agent", "")
     citations = callback_context.state.get("citations", {})
 
     logging.info(f"[wikipedia_citation_callback] Processing report with {len(citations)} available citations")
@@ -114,7 +114,7 @@ def wikipedia_citation_callback(callback_context: CallbackContext) -> genai_type
 
     # Ensure we have something to work with
     if not final_report.strip():
-        logging.warning("[wikipedia_citation_callback] No final_cited_report found — starting with empty report text.")
+        logging.warning("[wikipedia_citation_callback] No market_intelligence_agent found — starting with empty report text.")
         final_report = ""
 
     used_citations = set()
