@@ -170,7 +170,7 @@ class ApolloParameterConsolidator(BaseAgent):
         consolidated_params.sort_by_field = "relevance"
         
         # Store final parameters
-        ctx.session.state["apollo_search_parameters"] = consolidated_params.dict()
+        ctx.session.state["prospect_researcher"] = consolidated_params.dict()
         yield Event(author=self.name, content="Apollo.io search parameters consolidated and optimized.")
 
 
@@ -524,7 +524,7 @@ apollo_parameter_generator = LlmAgent(
     Generate a single ApolloSearchParameters object that maximizes relevant lead discovery across all personas.
     """,
     output_schema=ApolloSearchParameters,
-    output_key="apollo_search_parameters",
+    output_key="prospect_researcher",
 )
 
 # --- STREAMLINED PIPELINE ---
@@ -634,7 +634,7 @@ prospect_researcher = LlmAgent(
     Ready to generate your Apollo.io search parameters - just provide your product and company details to begin.
     """,
     sub_agents=[prospect_research_pipeline],
-    output_key="apollo_search_parameters",
+    output_key="prospect_researcher",
 )
 
 # root_agent = prospect_researcher

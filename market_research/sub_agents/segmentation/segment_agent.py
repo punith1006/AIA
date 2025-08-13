@@ -95,7 +95,7 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
 
 def wikipedia_citation_replacement_callback(callback_context: CallbackContext) -> genai_types.Content:
     """Replaces citation tags with Wikipedia-style numbered citations and adds reference section."""
-    final_report = callback_context.state.get("final_cited_report", "")
+    final_report = callback_context.state.get("segmentation_intelligence_agent", "")
     citations = callback_context.state.get("citations", {})
 
     def tag_replacer(match: re.Match) -> str:
@@ -541,7 +541,7 @@ segmentation_report_composer = LlmAgent(
 
     Generate a complete Segmentation Analysis Report to inform strategic targeting decisions.
     """,
-    output_key="final_cited_report",
+    output_key="segmentation_intelligence_agent",
     after_agent_callback=wikipedia_citation_replacement_callback,
 )
 

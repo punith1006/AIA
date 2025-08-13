@@ -120,7 +120,7 @@ def citation_replacement_callback(
     callback_context: CallbackContext,
 ) -> genai_types.Content:
     """Replaces citation tags in a report with Wikipedia-style clickable numbered references."""
-    final_report = callback_context.state.get("final_cited_report", "")
+    final_report = callback_context.state.get("sales_intelligence_agent", "")
     sources = callback_context.state.get("sources", {})
 
     # Assign each short_id a numeric index
@@ -736,7 +736,7 @@ sales_report_composer = LlmAgent(
 
     Generate a comprehensive sales intelligence report that enables immediate account-based selling execution.
     """,
-    output_key="final_cited_report",
+    output_key="sales_intelligence_agent",
     after_agent_callback=citation_replacement_callback,
 )
 
