@@ -13,6 +13,138 @@ from .sub_agents.prospect_research import prospect_researcher
 from .config import config
 
 # ----------------------------------------------------------------------
+# Storage Callback Functions
+# ----------------------------------------------------------------------
+def store_market_report(callback_context: CallbackContext):
+    """Store market intelligence report after market_intelligence_agent completes"""
+    try:
+        # Get project_id from the original input
+        project_id = callback_context.state.get('project_id')
+        project_id = project_id.replace('"','')
+        # Get the market intelligence report from the agent output
+        market_report = callback_context.state.get('market_intelligence_agent')
+        
+        if project_id and market_report:
+            # Store the report
+            update_project_report(
+                project_id=project_id,
+                report=market_report,
+                report_type="market_context"
+            )
+            print(f"Market intelligence report stored successfully for project {project_id}")
+        else:
+            print(f"Failed to store market report - project_id: {project_id}, report exists: {bool(market_report)}")
+    except Exception as e:
+        print(f"Error storing market intelligence report: {e}")
+
+def store_segmentation_report(callback_context: CallbackContext):
+    """Store segmentation report after segmentation_intelligence_agent completes"""
+    try:
+        project_id = callback_context.state.get('project_id')
+        
+        project_id = project_id.replace('"','')
+        segmentation_report = callback_context.state.get('segmentation_intelligence_agent')
+        
+        if project_id and segmentation_report:
+            update_project_report(
+                project_id=project_id,
+                report=segmentation_report,
+                report_type="market_segment"
+            )
+            print(f"Segmentation report stored successfully for project {project_id}")
+        else:
+            print(f"Failed to store segmentation report - project_id: {project_id}, report exists: {bool(segmentation_report)}")
+    except Exception as e:
+        print(f"Error storing segmentation report: {e}")
+
+def store_organizational_report(callback_context: CallbackContext):
+    """Store organizational intelligence report after organizational_intelligence_agent completes"""
+    try:
+        project_id = callback_context.state.get('project_id')
+        
+        project_id = project_id.replace('"','')
+        org_report = callback_context.state.get('organizational_intelligence_agent')
+        
+        if project_id and org_report:
+            update_project_report(
+                project_id=project_id,
+                report=org_report,
+                report_type="client_org_research"
+            )
+            print(f"Organizational intelligence report stored successfully for project {project_id}")
+        else:
+            print(f"Failed to store org report - project_id: {project_id}, report exists: {bool(org_report)}")
+    except Exception as e:
+        print(f"Error storing organizational intelligence report: {e}")
+
+def store_sales_report(callback_context: CallbackContext):
+    """Store sales intelligence report after conditional_sales_intelligence_agent completes (if not skipped)"""
+    try:
+        project_id = callback_context.state.get('project_id')
+        
+        project_id = project_id.replace('"','')
+        sales_report = callback_context.state.get('sales_intelligence_agent')
+        
+        if project_id and sales_report:
+            # Check if sales intelligence was skipped
+            if isinstance(sales_report, dict) and sales_report.get('skipped'):
+                print(f"Sales intelligence was skipped - no storage needed for project {project_id}")
+                return
+                
+            update_project_report(
+                project_id=project_id,
+                report=sales_report,
+                report_type="target_org_research"
+            )
+            print(f"Sales intelligence report stored successfully for project {project_id}")
+        else:
+            print(f"Failed to store sales report - project_id: {project_id}, report exists: {bool(sales_report)}")
+    except Exception as e:
+        print(f"Error storing sales intelligence report: {e}")
+
+def store_prospect_report(callback_context: CallbackContext):
+    """Store prospect research report after prospect_researcher completes"""
+    try:
+        project_id = callback_context.state.get('project_id')
+        
+        project_id = project_id.replace('"','')
+        prospect_report = callback_context.state.get('prospect_researcher')
+        
+        if project_id and prospect_report:
+            update_project_report(
+                project_id=project_id,
+                report=prospect_report,
+                report_type="prospect_research"
+            )
+            print(f"Prospect research report stored successfully for project {project_id}")
+        else:
+            print(f"Failed to store prospect report - project_id: {project_id}, report exists: {bool(prospect_report)}")
+    except Exception as e:
+        print(f"Error storing prospect research report: {e}")
+
+def extract_project_id(callback_context: CallbackContext):
+    """Extract and store project_id from initial input for use by storage callbacks"""
+    try:
+        # Get the original input and extract project_id
+        input_data = callback_context.input_data
+        if isinstance(input_data, dict) and 'project_id' in input_data:
+            callback_context.state['project_id'] = input_data['project_id']
+        elif isinstance(input_data, str):
+            # Try to parse as JSON if it's a string
+            try:
+                parsed = json.loads(input_data)
+                if 'project_id' in parsed:
+                    callback_context.state['project_id'] = parsed['project_id']
+            except:
+                # If not JSON, try to extract project_id from text
+                # This is a fallback - adjust based on your input format
+                pass
+        
+        print(f"Project ID extracted: {callback_context.state.get('project_id')}")
+    except Exception as e:
+        print(f"Error extracting project_id: {e}")
+
+# ----------------------------------------------------------------------
 # Ensure output_key is consistent for all imported sub-agents
 # ----------------------------------------------------------------------
 market_intelligence_agent.output_key = "market_intelligence_agent"
@@ -21,6 +153,13 @@ organizational_intelligence_agent.output_key = "organizational_intelligence_agen
 sales_intelligence_agent.output_key = "sales_intelligence_agent"
 prospect_researcher.output_key = "prospect_researcher"
 
+# Add after-agent callbacks for storage
+market_intelligence_agent.after_agent_callback = [store_market_report]
+segmentation_intelligence_agent.after_agent_callback = [store_segmentation_report]
+organizational_intelligence_agent.after_agent_callback = [store_organizational_report]
+# Note: sales_intelligence_agent callback will be added to conditional_sales_intelligence_agent
+prospect_researcher.after_agent_callback = [store_prospect_report]
+
 # ----------------------------------------------------------------------
 # User Input Analyzer
 # ----------------------------------------------------------------------
@@ -28,7 +167,7 @@ user_input_analyzer = LlmAgent(
     name="user_input_analyzer",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
     ),
     description="Analyzes user input to determine if specific target organizations are mentioned.",
     instruction="""
@@ -54,7 +193,8 @@ user_input_analyzer = LlmAgent(
         
         Set needs_sales_intelligence to true only if has_target_organizations is true.
     """,
-    output_key="user_analysis"
+    output_key="user_analysis",
+    after_agent_callback=[extract_project_id]
 )
 
 # ----------------------------------------------------------------------
@@ -64,16 +204,16 @@ project_creator = LlmAgent(
     name="project_creator",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
     ),
     description="Creates a blank MongoDB project document using the provided project ID.",
     instruction="""
         You will receive input that contains a project_id. Extract the project_id and use the create_blank_project tool to create a new blank project document in MongoDB.
         
-        After successfully creating the project, respond with: "Blank project created successfully with ID: [project_id]"
+        After successfully creating the project, respond with just the project_id as a string and nothing else.
     """,
     tools=[create_blank_project],
-    output_key="project_created"
+    output_key="project_id"
 )
 
 # ----------------------------------------------------------------------
@@ -83,7 +223,7 @@ market_prompt_builder = LlmAgent(
     name="market_prompt_builder",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
     ),
     description="Generates JSON input for market_intelligence_agent from user input.",
     instruction="""
@@ -105,7 +245,7 @@ segmentation_prompt_builder = LlmAgent(
     name="segmentation_prompt_builder",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
     ),
     description="Generates JSON input for segmentation_intelligence_agent using user input and market intelligence report.",
     instruction="""
@@ -131,14 +271,12 @@ org_prompt_builder = LlmAgent(
     name="org_prompt_builder",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
     ),
     description="Generates JSON input for organizational_intelligence_agent using user input and previous reports.",
     instruction="""
-        Using the user input, market intelligence report, and segmentation report, create a JSON object for organizational intelligence research.
-        
+        Using the user input, market intelligence report, create a JSON object for organizational intelligence research.
         Market Intelligence Report: {market_intelligence_agent}
-        Segmentation Report: {segmentation_intelligence_agent}
         
         Output ONLY a valid JSON object in the following format. Do not include any extra text or commentary.
         {
@@ -173,7 +311,7 @@ conditional_sales_prompt_builder = LlmAgent(
     name="conditional_sales_prompt_builder",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
     ),
     description="Conditionally generates JSON input for sales_intelligence_agent or passes through empty result.",
     instruction="""
@@ -187,8 +325,6 @@ conditional_sales_prompt_builder = LlmAgent(
         
         User Analysis: {user_analysis}
         Market Intelligence Report: {market_intelligence_agent}
-        Segmentation Report: {segmentation_intelligence_agent}
-        Organizational Report: {organizational_intelligence_agent}
         
         Output a valid JSON object:
         {
@@ -218,7 +354,7 @@ conditional_sales_intelligence_agent = LlmAgent(
     name="conditional_sales_intelligence_agent",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
     ),
     description="Conditionally executes sales intelligence research or skips if no specific targets identified.",
     instruction="""
@@ -244,30 +380,8 @@ conditional_sales_intelligence_agent = LlmAgent(
         
         Output a comprehensive sales intelligence report with specific, actionable recommendations for approaching each target organization.
     """,
-    output_key="sales_intelligence_agent"
-)
-
-conditional_sales_storage_agent = LlmAgent(
-    name="conditional_sales_storage_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
-    description="Conditionally stores sales intelligence report to MongoDB or skips storage.",
-    instruction="""
-        Check the sales intelligence report: {sales_intelligence_agent}
-        
-        If the report contains "skipped": true, then respond with: "Sales intelligence skipped - no storage needed"
-        
-        Otherwise, store the sales intelligence report to MongoDB:
-        - Use the project_id from the initial input
-        - Use the sales intelligence report content  
-        - Use report_type: "target_org_research"
-        
-        After storing, respond with: "Sales intelligence report stored successfully"
-    """,
-    tools=[update_project_report],
-    output_key="sales_stored"
+    output_key="sales_intelligence_agent",
+    after_agent_callback=[store_sales_report]
 )
 
 # ----------------------------------------------------------------------
@@ -277,7 +391,7 @@ prospect_prompt_builder = LlmAgent(
     name="prospect_prompt_builder",
     model=Gemini(
         model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
+        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
     ),
     description="Generates JSON input for prospect_researcher using all available reports.",
     instruction="""
@@ -311,138 +425,40 @@ prospect_prompt_builder = LlmAgent(
 )
 
 # ----------------------------------------------------------------------
-# Storage Agents (unchanged)
-# ----------------------------------------------------------------------
-market_storage_agent = LlmAgent(
-    name="market_storage_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
-    description="Stores market intelligence report to MongoDB",
-    instruction="""
-        Store the market intelligence report to MongoDB.
-        
-        Use the project_id from the initial input and the market intelligence report: {market_intelligence_agent}
-        
-        Use the update_project_report tool with:
-        - project_id: the ID from user input
-        - report: the market intelligence report content
-        - report_type: "market_context"
-        
-        After storing, respond with: "Market intelligence report stored successfully"
-    """,
-    tools=[update_project_report],
-    output_key="market_stored"
-)
-
-segmentation_storage_agent = LlmAgent(
-    name="segmentation_storage_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
-    description="Stores segmentation intelligence report to MongoDB",
-    instruction="""
-        Store the segmentation intelligence report to MongoDB.
-        
-        Use the project_id from the initial input and the segmentation report: {segmentation_intelligence_agent}
-        
-        Use the update_project_report tool with:
-        - project_id: the ID from user input
-        - report: the segmentation intelligence report content  
-        - report_type: "market_segment"
-        
-        After storing, respond with: "Segmentation report stored successfully"
-    """,
-    tools=[update_project_report],
-    output_key="segmentation_stored"
-)
-
-org_storage_agent = LlmAgent(
-    name="org_storage_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
-    description="Stores organizational intelligence report to MongoDB",
-    instruction="""
-        Store the organizational intelligence report to MongoDB.
-        
-        Use the project_id from the initial input and the organizational report: {organizational_intelligence_agent}
-        
-        Use the update_project_report tool with:
-        - project_id: the ID from user input
-        - report: the organizational intelligence report content
-        - report_type: "client_org_research"
-        
-        After storing, respond with: "Organizational intelligence report stored successfully"
-    """,
-    tools=[update_project_report],
-    output_key="org_stored"
-)
-
-prospect_storage_agent = LlmAgent(
-    name="prospect_storage_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
-    description="Stores prospect research report to MongoDB",
-    instruction="""
-        Store the prospect research report to MongoDB.
-        
-        Use the project_id from the initial input and the prospect research report: {prospect_researcher}
-        
-        Use the update_project_report tool with:
-        - project_id: the ID from user input
-        - report: the prospect research report content
-        - report_type: "prospect_research"
-        
-        After storing, respond with: "Prospect research report stored successfully"
-    """,
-    tools=[update_project_report],
-    output_key="prospect_stored"
-)
-
-# ----------------------------------------------------------------------
-# Working Sequential Agent with Conditional Logic
+# Working Sequential Agent with Conditional Logic and Callback Storage
 # ----------------------------------------------------------------------
 comprehensive_intelligence_chancellor = SequentialAgent(
     name="comprehensive_intelligence_chancellor",
     description="""
-        Runs a comprehensive intelligence analysis pipeline with conditional sales intelligence:
+        Runs a comprehensive intelligence analysis pipeline with conditional sales intelligence and automatic storage:
         
         1. Analyze user input for specific target organizations
         2. Create blank project document in MongoDB
-        3. Market Intelligence Analysis → Store to market_context
-        4. Market Segmentation Analysis → Store to market_segment  
-        5. Organizational Intelligence Research → Store to client_org_research
-        6. [CONDITIONAL] Sales Intelligence Research → Store to target_org_research
+        3. Market Intelligence Analysis → Auto-stored to market_context via callback
+        4. Market Segmentation Analysis → Auto-stored to market_segment via callback
+        5. Organizational Intelligence Research → Auto-stored to client_org_research via callback
+        6. [CONDITIONAL] Sales Intelligence Research → Auto-stored to target_org_research via callback
            - Only executes if user specified particular organizations (e.g., "target Microsoft and Google")
            - Skips if user only mentioned general categories (e.g., "target tech companies")
-        7. Prospect Research → Store to prospect_research (adapts based on whether sales intelligence ran)
+        7. Prospect Research → Auto-stored to prospect_research via callback
         
-        The conditional logic is implemented through agents that check previous outputs and decide whether to execute or skip their functionality.
+        Each research agent now has an after_agent_callback that automatically stores its report to MongoDB
+        using the project_id extracted from the initial input. This ensures consistent storage without
+        requiring separate storage agents.
     """,
     sub_agents=[
-        user_input_analyzer,                    # Analyze input for specific organizations
+        user_input_analyzer,                    # Analyze input + extract project_id
         project_creator,                        # Create project
         market_prompt_builder,                  # Build market prompt
-        market_intelligence_agent,              # Execute market intelligence
-        market_storage_agent,                   # Store market report
+        market_intelligence_agent,              # Execute market intelligence + auto-store
         segmentation_prompt_builder,            # Build segmentation prompt
-        segmentation_intelligence_agent,        # Execute segmentation
-        segmentation_storage_agent,             # Store segmentation report
+        segmentation_intelligence_agent,        # Execute segmentation + auto-store
         org_prompt_builder,                     # Build org prompt
-        organizational_intelligence_agent,      # Execute org intelligence
-        org_storage_agent,                      # Store org report
+        organizational_intelligence_agent,      # Execute org intelligence + auto-store
         conditional_sales_prompt_builder,       # Conditionally build sales prompt OR skip
-        conditional_sales_intelligence_agent,   # Conditionally execute sales intelligence OR skip
-        conditional_sales_storage_agent,        # Conditionally store sales report OR skip
+        conditional_sales_intelligence_agent,   # Conditionally execute sales intelligence + auto-store OR skip
         prospect_prompt_builder,                # Build prospect prompt (handles optional sales data)
-        prospect_researcher,                    # Execute prospect research
-        prospect_storage_agent                  # Store prospect report
+        prospect_researcher,                    # Execute prospect research + auto-store
     ]
 )
 

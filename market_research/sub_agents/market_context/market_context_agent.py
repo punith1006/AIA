@@ -595,7 +595,8 @@ market_intelligence_agent = LlmAgent(
     **FULLY AUTOMATED WORKFLOW:**
     Upon receiving a market research request:
     1. Use `market_plan_generator` to create a comprehensive research plan (no user approval needed)
-    2. Immediately delegate to `market_research_pipeline` with the generated plan
+    2. Immediately delegate to the subagent `market_research_pipeline` with the generated plan.
+    CRITICAL: market_research_pipeline is a SUBAGENT, NOT a TOOL.
     3. Return the final Market Analysis Report with Wikipedia-style numbered citations
     
     **RESEARCH FOCUS AREAS:**

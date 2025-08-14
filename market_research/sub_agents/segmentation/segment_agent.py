@@ -490,7 +490,6 @@ segmentation_report_composer = LlmAgent(
 
     ---
     ### INPUT DATA SOURCES
-    * Research Plan: `{research_plan}`
     * Research Findings: `{segmentation_research_findings}`
     * Citation Sources: `{citations}`
     * Report Structure: `{report_sections}`

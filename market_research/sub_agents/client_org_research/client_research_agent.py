@@ -175,7 +175,7 @@ organizational_plan_generator = LlmAgent(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
         initial_delay=3,
-        attempts=3
+        attempts=6
        
         )
     ),
@@ -251,7 +251,7 @@ organizational_section_planner = LlmAgent(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
         initial_delay=3,
-        attempts=3
+        attempts=6
        
         )
     ),
@@ -342,7 +342,7 @@ organizational_researcher = LlmAgent(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
         initial_delay=3,
-        attempts=3
+        attempts=6
        
         )
     ),
@@ -447,7 +447,7 @@ organizational_evaluator = LlmAgent(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
         initial_delay=3,
-        attempts=3
+        attempts=6
        
         )
     ),
@@ -520,7 +520,7 @@ enhanced_organizational_search = LlmAgent(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
         initial_delay=3,
-        attempts=3
+        attempts=6
        
         )
     ),
@@ -583,7 +583,7 @@ organizational_report_composer = LlmAgent(
         model=config.critic_model,
         retry_options=genai_types.HttpRetryOptions(
         initial_delay=3,
-        attempts=3
+        attempts=6
        
         )
     ),
@@ -685,7 +685,7 @@ organizational_intelligence_agent = LlmAgent(
         model=config.worker_model,
         retry_options=genai_types.HttpRetryOptions(
         initial_delay=3,
-        attempts=3
+        attempts=6
        
         )
     ),
