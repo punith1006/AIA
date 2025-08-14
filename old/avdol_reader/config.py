@@ -1,9 +1,10 @@
+from google.adk.agents import LlmAgent
+from google.adk.models.lite_llm import LiteLlm
+
 import os
 from dataclasses import dataclass
 
 import google.auth
-
-from google.adk.models import Gemini
 
 # To use AI Studio credentials:
 # 1. Create a .env file in the /app directory with:
@@ -26,16 +27,8 @@ class ResearchConfiguration:
         max_search_iterations (int): Maximum search iterations allowed.
     """
 
-    critic_model: str = "gemini-2.5-pro"
-    worker_model: str = "gemini-2.5-flash"
-    search_model = Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=3,
-	    attempts=3
-	    
-	    )
-    ),
+    critic_model = LiteLlm(model="openai/gpt-5")
+    worker_model = LiteLlm(model="openai/gpt-5-mini")
     max_search_iterations: int = 5
 
 

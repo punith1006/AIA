@@ -15,7 +15,7 @@ from google.genai import types as genai_types
 from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
-from .config import config
+from ...config import config
 
 
 # --- Structured Output Models ---
@@ -186,13 +186,7 @@ class SalesEscalationChecker(BaseAgent):
 
 # --- ENHANCED AGENT DEFINITIONS ---
 sales_plan_generator = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=3,
-            attempts=3
-        )
-    ),
+    model = config.search_model,
     name="sales_plan_generator",
     description="Generates comprehensive sales intelligence research plans for product-organization fit analysis.",
     instruction=f"""
@@ -294,13 +288,7 @@ sales_plan_generator = LlmAgent(
 )
 
 sales_section_planner = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=3,
-            attempts=3
-        )
-    ),
+    model = config.worker_model,
     name="sales_section_planner",
     description="Creates a structured sales intelligence report outline following the standardized 9-section format.",
     instruction="""
@@ -393,13 +381,7 @@ sales_section_planner = LlmAgent(
 )
 
 sales_researcher = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=3,
-            attempts=3
-        )
-    ),
+    model = config.search_model,
     name="sales_researcher",
     description="Specialized sales intelligence researcher focusing on product-organization fit analysis and competitive positioning.",
     planner=BuiltInPlanner(
@@ -511,13 +493,7 @@ sales_researcher = LlmAgent(
 )
 
 sales_evaluator = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=3,
-            attempts=3
-        )
-    ),
+    model = config.critic_model,
     name="sales_evaluator",
     description="Evaluates sales intelligence research completeness and identifies gaps for product-organization fit analysis.",
     instruction=f"""
@@ -592,13 +568,7 @@ sales_evaluator = LlmAgent(
 )
 
 enhanced_sales_search = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=3,
-            attempts=3
-        )
-    ),
+    model = config.search_model,
     name="enhanced_sales_search",
     description="Executes targeted follow-up searches to fill sales intelligence gaps identified by the evaluator.",
     planner=BuiltInPlanner(
@@ -654,13 +624,7 @@ enhanced_sales_search = LlmAgent(
 )
 
 sales_report_composer = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=3,
-            attempts=3
-        )
-    ),
+    model = config.critic_model,
     name="sales_report_composer",
     include_contents="none",
     description="Composes comprehensive sales intelligence reports following the standardized 9-section format with proper citations.",
@@ -763,13 +727,7 @@ sales_intelligence_pipeline = SequentialAgent(
 # --- UPDATED MAIN AGENT ---
 sales_intelligence_agent = LlmAgent(
     name="sales_intelligence_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=3,
-            attempts=3
-        )
-    ),
+    model = config.worker_model,
     description="Specialized sales intelligence assistant that creates comprehensive product-organization fit analysis reports for account-based selling.",
     instruction=f"""
     You are a specialized Sales Intelligence Assistant focused on comprehensive product-organization fit analysis for account-based selling and strategic sales planning.

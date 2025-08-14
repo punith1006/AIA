@@ -165,10 +165,7 @@ prospect_researcher.after_agent_callback = [store_prospect_report]
 # ----------------------------------------------------------------------
 user_input_analyzer = LlmAgent(
     name="user_input_analyzer",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
-    ),
+    model = config.worker_model,
     description="Analyzes user input to determine if specific target organizations are mentioned.",
     instruction="""
         Analyze the user input to determine if they have mentioned specific organizations/companies they want to target.
@@ -202,10 +199,7 @@ user_input_analyzer = LlmAgent(
 # ----------------------------------------------------------------------
 project_creator = LlmAgent(
     name="project_creator",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
-    ),
+    model = config.worker_model,
     description="Creates a blank MongoDB project document using the provided project ID.",
     instruction="""
         You will receive input that contains a project_id. Extract the project_id and use the create_blank_project tool to create a new blank project document in MongoDB.
@@ -221,10 +215,7 @@ project_creator = LlmAgent(
 # ----------------------------------------------------------------------
 market_prompt_builder = LlmAgent(
     name="market_prompt_builder",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
-    ),
+    model = config.worker_model,
     description="Generates JSON input for market_intelligence_agent from user input.",
     instruction="""
         Based on the user input, extract and structure the information to create a JSON object for market intelligence research.
@@ -243,10 +234,7 @@ market_prompt_builder = LlmAgent(
 
 segmentation_prompt_builder = LlmAgent(
     name="segmentation_prompt_builder",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
-    ),
+    model = config.worker_model,
     description="Generates JSON input for segmentation_intelligence_agent using user input and market intelligence report.",
     instruction="""
         Using the user input and the market intelligence report from the previous step, create a JSON object for market segmentation analysis.
@@ -269,10 +257,7 @@ segmentation_prompt_builder = LlmAgent(
 
 org_prompt_builder = LlmAgent(
     name="org_prompt_builder",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
-    ),
+    model = config.worker_model,
     description="Generates JSON input for organizational_intelligence_agent using user input and previous reports.",
     instruction="""
         Using the user input, market intelligence report, create a JSON object for organizational intelligence research.
@@ -309,10 +294,7 @@ org_prompt_builder = LlmAgent(
 # ----------------------------------------------------------------------
 conditional_sales_prompt_builder = LlmAgent(
     name="conditional_sales_prompt_builder",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
-    ),
+    model = config.worker_model,
     description="Conditionally generates JSON input for sales_intelligence_agent or passes through empty result.",
     instruction="""
         Check the user analysis: {user_analysis}
@@ -352,10 +334,7 @@ conditional_sales_prompt_builder = LlmAgent(
 
 conditional_sales_intelligence_agent = LlmAgent(
     name="conditional_sales_intelligence_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
-    ),
+    model = config.worker_model,
     description="Conditionally executes sales intelligence research or skips if no specific targets identified.",
     instruction="""
         Check the sales_agent_input: {sales_agent_input}
@@ -389,19 +368,14 @@ conditional_sales_intelligence_agent = LlmAgent(
 # ----------------------------------------------------------------------
 prospect_prompt_builder = LlmAgent(
     name="prospect_prompt_builder",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=6)
-    ),
+    model = config.worker_model,
     description="Generates JSON input for prospect_researcher using all available reports.",
     instruction="""
         Using the user input and all available intelligence reports, create a JSON object for prospect research.
         
         User Analysis: {user_analysis}
-        Market Intelligence Report: {market_intelligence_agent}
         Segmentation Report: {segmentation_intelligence_agent}
         Organizational Report: {organizational_intelligence_agent}
-        Sales Intelligence Report: {sales_intelligence_agent}
         
         Note: Sales intelligence may be skipped if no specific targets were identified.
         

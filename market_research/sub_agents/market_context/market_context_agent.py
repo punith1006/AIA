@@ -15,7 +15,7 @@ from google.genai import types as genai_types
 from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
-from .config import config
+from ...config import config
 
 # --- Structured Output Models ---
 class MarketSearchQuery(BaseModel):
@@ -182,10 +182,7 @@ class EscalationChecker(BaseAgent):
 
 # --- Agent Definitions ---
 market_plan_generator = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
+    model = config.search_model,
     name="market_plan_generator",
     description="Generates comprehensive market research plans focused on market context, sizing, and analysis.",
     instruction=f"""
@@ -252,10 +249,7 @@ market_plan_generator = LlmAgent(
 )
 
 market_section_planner = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
+    model = config.worker_model,
     name="market_section_planner",
     description="Creates a structured market analysis report outline following the standardized market research format.",
     instruction="""
@@ -308,10 +302,7 @@ market_section_planner = LlmAgent(
 )
 
 market_researcher = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
+    model = config.search_model,
     name="market_researcher",
     description="Specialized market research agent focusing on market sizing, industry landscape, ecosystem",
     planner=BuiltInPlanner(
@@ -377,10 +368,7 @@ market_researcher = LlmAgent(
 )
 
 market_evaluator = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
+    model = config.critic_model,
     name="market_evaluator",
     description="Evaluates market research completeness and identifies gaps in market analysis.",
     instruction=f"""
@@ -431,10 +419,7 @@ market_evaluator = LlmAgent(
 )
 
 enhanced_market_search = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
+    model = config.search_model,
     name="enhanced_market_search",
     description="Performs targeted follow-up searches to fill market research gaps identified by the evaluator.",
     planner=BuiltInPlanner(
@@ -477,10 +462,7 @@ enhanced_market_search = LlmAgent(
 )
 
 market_report_composer = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
+    model = config.critic_model,
     name="market_report_composer",
     description="Composes comprehensive market analysis reports following the standardized format with Wikipedia-style citations.",
     instruction="""
@@ -575,10 +557,7 @@ market_research_pipeline = SequentialAgent(
 
 market_intelligence_agent = LlmAgent(
     name="market_intelligence_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(initial_delay=3, attempts=3)
-    ),
+    model = config.worker_model,
     description="Specialized market research assistant that creates comprehensive market analysis reports automatically.",
     instruction=f"""
     You are a specialized Market Intelligence Assistant focused on creating strategic market analyses for product planning.

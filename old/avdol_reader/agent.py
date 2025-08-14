@@ -5,6 +5,8 @@ from google.genai import types
 
 import random
 
+from .config import config
+
 def tarot_select(name:str, drawno:int) -> list[str]:
     """Selects and returns a number of random tarot cards from the Rider-Waite deck.
 
@@ -194,7 +196,7 @@ from google.adk.models.lite_llm import LiteLlm
 
 # (Requires OPENAI_API_KEY)
 agent_openai = LlmAgent(
-    model=LiteLlm(model="openai/o4-mini"), # LiteLLM model string format
+    model=config.worker_model, # LiteLLM model string format
     name="Avdol",
     description=(
         "Tarot interpreting agent that can randomly select a user-selected number of tarot cards from the Rider-Waite deck and create an interpret  ation about the User's future."

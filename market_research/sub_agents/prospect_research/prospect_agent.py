@@ -14,7 +14,8 @@ from google.adk.tools.agent_tool import AgentTool
 from google.genai import types as genai_types
 from pydantic import BaseModel, Field
 from google.adk.models import Gemini
-from .config import config
+
+from ...config import config
 
 
 # --- Structured Output Models ---
@@ -177,14 +178,7 @@ class ApolloParameterConsolidator(BaseAgent):
 # --- STREAMLINED AGENTS ---
 
 consolidated_persona_researcher = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=3,
-	    attempts=3
-	    
-	    )
-    ),
+    model = config.search_model,
     name="consolidated_persona_researcher",
     description="Executes comprehensive customer persona research focused on Apollo.io parameter optimization.",
     planner=BuiltInPlanner(
@@ -259,14 +253,7 @@ consolidated_persona_researcher = LlmAgent(
 )
 
 persona_research_evaluator = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=3,
-	    attempts=3
-	    
-	    )
-    ),
+    model = config.critic_model,
     name="persona_research_evaluator",
     description="Evaluates persona research for Apollo.io parameter completeness.",
     instruction=f"""
@@ -330,14 +317,7 @@ persona_research_evaluator = LlmAgent(
 )
 
 enhanced_persona_search = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=3,
-	    attempts=3
-	    
-	    )
-    ),
+    model = config.search_model,
     name="enhanced_persona_search",
     description="Executes targeted follow-up searches to fill Apollo.io parameter gaps.",
     planner=BuiltInPlanner(
@@ -388,14 +368,7 @@ enhanced_persona_search = LlmAgent(
 )
 
 persona_data_generator = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=3,
-	    attempts=3
-	    
-	    )
-    ),
+    model = config.critic_model,
     name="persona_data_generator",
     description="Generates structured persona data optimized for Apollo.io parameters.",
     instruction="""
@@ -460,14 +433,7 @@ persona_data_generator = LlmAgent(
 )
 
 apollo_parameter_generator = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=3,
-	    attempts=3
-	    
-	    )
-    ),
+    model = config.critic_model,
     name="apollo_parameter_generator",
     description="Generates consolidated Apollo.io search parameters from all persona data.",
     instruction="""
@@ -550,14 +516,7 @@ prospect_research_pipeline = SequentialAgent(
 # --- MAIN STREAMLINED APOLLO AGENT ---
 prospect_researcher = LlmAgent(
     name="prospect_researcher",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-	    initial_delay=3,
-	    attempts=3
-	    
-	    )
-    ),
+    model = config.worker_model,
     description="Streamlined customer persona research assistant that generates consolidated Apollo.io search parameters through focused market analysis.",
     instruction=f"""
     You are a streamlined Apollo.io Lead Generation Assistant focused on creating optimized search parameters.

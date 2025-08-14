@@ -15,7 +15,7 @@ from google.genai import types as genai_types
 from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
-from .config import config
+from ...config import config
 
 # --- Structured Output Models ---
 class SegmentationSearchQuery(BaseModel):
@@ -156,14 +156,7 @@ class EscalationChecker(BaseAgent):
 
 # --- Agent Definitions ---
 segmentation_plan_generator = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=3
-       
-        )
-    ),
+    model = config.search_model,
     name="segmentation_plan_generator",
     description="Generates comprehensive segmentation research plans focusing on market segments and customer segments.",
     instruction=f"""
@@ -228,14 +221,7 @@ segmentation_plan_generator = LlmAgent(
 )
 
 segmentation_section_planner = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=3
-       
-        )
-    ),
+    model = config.worker_model,
     name="segmentation_section_planner",
     description="Creates a structured segmentation analysis report outline following a standardized format.",
     instruction="""
@@ -284,14 +270,7 @@ segmentation_section_planner = LlmAgent(
 )
 
 segmentation_researcher = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=3
-       
-        )
-    ),
+    model = config.search_model,
     name="segmentation_researcher",
     description="Specialized segmentation research agent focusing on market segments, customer segmentation, and strategic analysis.",
     planner=BuiltInPlanner(
@@ -351,14 +330,7 @@ segmentation_researcher = LlmAgent(
 )
 
 segmentation_evaluator = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=3
-       
-        )
-    ),
+    model = config.critic_model,
     name="segmentation_evaluator",
     description="Evaluates segmentation research completeness and identifies gaps in segmentation analysis.",
     instruction=f"""
@@ -410,14 +382,7 @@ segmentation_evaluator = LlmAgent(
 )
 
 enhanced_segmentation_search = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=3
-       
-        )
-    ),
+    model = config.search_model,
     name="enhanced_segmentation_search",
     description="Performs targeted follow-up searches to fill segmentation research gaps identified by the evaluator.",
     planner=BuiltInPlanner(
@@ -472,14 +437,7 @@ enhanced_segmentation_search = LlmAgent(
 )
 
 segmentation_report_composer = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=3
-       
-        )
-    ),
+    model = config.critic_model,
     name="segmentation_report_composer",
     include_contents="none",
     description="Composes comprehensive segmentation analysis reports with Wikipedia-style numbered citations.",
@@ -565,14 +523,7 @@ segmentation_research_pipeline = SequentialAgent(
 
 segmentation_intelligence_agent = LlmAgent(
     name="segmentation_intelligence_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=3
-       
-        )
-    ),
+    model = config.worker_model,
     description="Specialized segmentation intelligence assistant that creates comprehensive segmentation analysis reports automatically.",
     instruction=f"""
     You are a specialized Segmentation Intelligence Assistant focused on creating strategic segmentation analyses for product planning.

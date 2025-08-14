@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 
 
-from .config import config
+from ...config import config
 
 
 # --- Structured Output Models ---
@@ -171,14 +171,7 @@ class EscalationChecker(BaseAgent):
 
 # --- ENHANCED AGENT DEFINITIONS ---
 organizational_plan_generator = LlmAgent(
-    model = Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=6
-       
-        )
-    ),
+    model = config.search_model,
     name="organizational_plan_generator",
     description="Generates comprehensive organizational research plans focused on company intelligence, social media presence, and market positioning.",
     instruction=f"""
@@ -247,14 +240,7 @@ organizational_plan_generator = LlmAgent(
 )
 
 organizational_section_planner = LlmAgent(
-    model = Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=6
-       
-        )
-    ),
+    model = config.worker_model,
     name="organizational_section_planner",
     description="Creates a structured report outline following the standardized organizational research format.",
     instruction="""
@@ -338,14 +324,7 @@ organizational_section_planner = LlmAgent(
 )
 
 organizational_researcher = LlmAgent(
-    model = Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=6
-       
-        )
-    ),
+    model = config.search_model,
     name="organizational_researcher",
     description="Specialized organizational intelligence researcher focusing on company websites, social media, and public perception analysis.",
     planner=BuiltInPlanner(
@@ -443,14 +422,7 @@ organizational_researcher = LlmAgent(
 )
 
 organizational_evaluator = LlmAgent(
-    model = Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=6
-       
-        )
-    ),
+    model = config.critic_model,
     name="organizational_evaluator",
     description="Evaluates organizational research completeness and identifies intelligence gaps for sales-focused company analysis.",
     instruction=f"""
@@ -516,14 +488,7 @@ organizational_evaluator = LlmAgent(
 )
 
 enhanced_organizational_search = LlmAgent(
-    model = Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=6
-       
-        )
-    ),
+    model = config.search_model,
     name="enhanced_organizational_search",
     description="Executes targeted follow-up searches to fill organizational intelligence gaps identified by the evaluator.",
     planner=BuiltInPlanner(
@@ -579,14 +544,7 @@ enhanced_organizational_search = LlmAgent(
 )
 
 organizational_report_composer = LlmAgent(
-    model = Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=6
-       
-        )
-    ),
+    model = config.critic_model,
     name="organizational_report_composer",
     include_contents="none",
     description="Composes comprehensive organizational intelligence reports following the standardized business research format with proper citations.",
@@ -681,14 +639,7 @@ organizational_research_pipeline = SequentialAgent(
 # --- UPDATED MAIN AGENT ---
 organizational_intelligence_agent = LlmAgent(
     name="organizational_intelligence_agent",
-    model = Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-        initial_delay=3,
-        attempts=6
-       
-        )
-    ),
+    model = config.worker_model,
     description="Specialized organizational research assistant that creates comprehensive company intelligence reports for sales and business development.",
     instruction=f"""
     You are a specialized Organizational Intelligence Assistant focused on comprehensive company research for sales and business development purposes.
