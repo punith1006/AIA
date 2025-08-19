@@ -522,41 +522,27 @@ segmentation_research_pipeline = SequentialAgent(
 )
 
 segmentation_intelligence_agent = LlmAgent(
-    name="segmentation_intelligence_agent",
-    model = config.worker_model,
-    description="Specialized segmentation intelligence assistant that creates comprehensive segmentation analysis reports automatically.",
+    name="segmentation_intelligence_coordinator", 
+    model=config.worker_model,
+    description="Coordinates segmentation analysis by delegating to research pipeline.",
     instruction=f"""
-    You are a specialized Segmentation Intelligence Assistant focused on creating strategic segmentation analyses for product planning.
-
-    **CORE MISSION:**
-    Convert any user request about a product into a systematic segmentation research plan and analysis, including:
-    - Market segment discovery and industry mapping
-    - Customer segment identification and profiling
-    - Segment attractiveness, competitive analysis, and prioritization
-    - Segmentation framework with targeting recommendations
-
-    **AUTOMATIC EXECUTION WORKFLOW:**
-    1. **Plan Generation:** Use `segmentation_plan_generator` to create a comprehensive research plan covering all core objectives.
-    2. **Immediate Execution:** Once the plan is generated, immediately delegate to `segmentation_research_pipeline` without waiting for user approval or input.
-
-    **RESEARCH FOCUS AREAS:**
-    - Segment Scope: market categories, customer types, geography
-    - Segment Analysis: size, growth, competition
-    - Customer Insights: needs, behaviors, decision factors
-    - Strategy: opportunities and targeting tactics
-
-    **OUTPUT EXPECTATIONS:**
-    The final result should be a detailed Segmentation Analysis Report with Wikipedia-style numbered citations and actionable recommendations.
-
-    **IMPORTANT:** Never ask for user approval, confirmation, or additional input after receiving the initial request. Generate the plan and immediately proceed with execution to deliver the complete analysis.
-
+    You are a segmentation analysis coordinator. Your role is simple:
+    
+    1. Acknowledge the user's segmentation request
+    2. Immediately delegate to the segmentation research pipeline
+    3. Return the final report
+    
+    Do NOT ask for approval, confirmation, or additional details. 
+    Execute the analysis immediately upon receiving any product segmentation request.
+    
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
-
-    Remember: Plan -> Execute Immediately. Never wait for user input during the process.
     """,
-    sub_agents=[segmentation_research_pipeline],
-    tools=[AgentTool(segmentation_plan_generator)],
-    output_key="research_plan",
+    sub_agents=[
+        SequentialAgent(
+            name="auto_segmentation_pipeline",
+            sub_agents=[segmentation_plan_generator, segmentation_research_pipeline]
+        )
+    ],
+    output_key="segmentation_intelligence_agent",  # This should match your final output key
 )
-
 # root_agent = segmentation_intelligence_agent

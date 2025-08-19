@@ -31,8 +31,8 @@ class ResearchConfiguration:
 
     # critic_model: str = "gemini-2.5-flash"
     # worker_model: str = "gemini-2.5-flash-lite"
-    critic_model = LiteLlm(model="openai/gpt-5")
-    worker_model = LiteLlm(model="openai/gpt-5-mini")
+    critic_model = LiteLlm(model="openai/o4-mini")
+    worker_model = LiteLlm(model="openai/o4-mini")
     search_model = Gemini(
             model="gemini-2.5-flash",
             retry_options=genai_types.HttpRetryOptions(

@@ -15,10 +15,7 @@ from google.genai import types as genai_types
 from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
-
-
 from ...config import config
-
 
 # --- Structured Output Models ---
 class SearchQuery(BaseModel):
@@ -30,7 +27,6 @@ class SearchQuery(BaseModel):
     research_phase: str = Field(
         description="The research phase this query belongs to: 'foundation', 'market_intelligence', 'deep_dive', or 'risk_assessment'"
     )
-
 
 class Feedback(BaseModel):
     """Model for providing evaluation feedback on organizational research quality."""
@@ -46,7 +42,6 @@ class Feedback(BaseModel):
         description="Specific follow-up searches needed to fill organizational intelligence gaps. Should focus on missing company data, leadership info, financial status, or market position.",
     )
 
-
 # --- Callbacks ---
 def collect_research_sources_callback(callback_context: CallbackContext) -> None:
     """Collects and organizes web-based research sources and their supported claims from agent events."""
@@ -54,6 +49,7 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
     url_to_short_id = callback_context.state.get("url_to_short_id", {})
     sources = callback_context.state.get("sources", {})
     id_counter = len(url_to_short_id) + 1
+    
     for event in session.events:
         if not (event.grounding_metadata and event.grounding_metadata.grounding_chunks):
             continue
@@ -79,6 +75,7 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
                 }
                 id_counter += 1
             chunks_info[idx] = url_to_short_id[url]
+        
         if event.grounding_metadata.grounding_supports:
             for support in event.grounding_metadata.grounding_supports:
                 confidence_scores = support.confidence_scores or []
@@ -96,9 +93,9 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
                                 "confidence": confidence,
                             }
                         )
+    
     callback_context.state["url_to_short_id"] = url_to_short_id
     callback_context.state["sources"] = sources
-
 
 def citation_replacement_callback(
     callback_context: CallbackContext,
@@ -132,19 +129,16 @@ def citation_replacement_callback(
     references = "\n\n## References\n"
     for short_id, idx in sorted(short_id_to_index.items(), key=lambda x: x[1]):
         source_info = sources[short_id]
-        domain = source_info.get('domain', '')  # Get domain safely
+        domain = source_info.get('domain', '')
         references += (
             f"<p id=\"ref{idx}\">[{idx}] "
             f"<a href=\"{source_info['url']}\">{source_info['title']}</a>"
-            f"{f' ({domain})' if domain else ''}</p>\n"  # Fixed: use 'domain' variable
+            f"{f' ({domain})' if domain else ''}</p>\n"
         )
 
     processed_report += references
-
     callback_context.state["organizational_intelligence_agent"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
-
-
 
 # --- Custom Agent for Loop Control ---
 class EscalationChecker(BaseAgent):
@@ -157,21 +151,26 @@ class EscalationChecker(BaseAgent):
         self, ctx: InvocationContext
     ) -> AsyncGenerator[Event, None]:
         evaluation_result = ctx.session.state.get("research_evaluation")
-        if evaluation_result and evaluation_result.get("grade") == "pass":
-            logging.info(
-                f"[{self.name}] Organizational research evaluation passed. Escalating to stop loop."
-            )
+        logging.info(f"[{self.name}] Checking evaluation result: {evaluation_result}")
+        
+        # More robust check for pass condition
+        if (evaluation_result and 
+            isinstance(evaluation_result, dict) and 
+            evaluation_result.get("grade") == "pass"):
+            logging.info(f"[{self.name}] Research evaluation passed. Escalating to stop loop.")
+            yield Event(author=self.name, actions=EventActions(escalate=True))
+        elif (evaluation_result and 
+              hasattr(evaluation_result, 'grade') and 
+              evaluation_result.grade == "pass"):
+            logging.info(f"[{self.name}] Research evaluation passed (object). Escalating to stop loop.")
             yield Event(author=self.name, actions=EventActions(escalate=True))
         else:
-            logging.info(
-                f"[{self.name}] Research evaluation failed or not found. Loop will continue."
-            )
+            logging.info(f"[{self.name}] Research evaluation failed or not found. Loop will continue.")
             yield Event(author=self.name)
-
 
 # --- ENHANCED AGENT DEFINITIONS ---
 organizational_plan_generator = LlmAgent(
-    model = config.search_model,
+    model=config.search_model,
     name="organizational_plan_generator",
     description="Generates comprehensive organizational research plans focused on company intelligence, social media presence, and market positioning.",
     instruction=f"""
@@ -216,17 +215,6 @@ organizational_plan_generator = LlmAgent(
     - **`[DELIVERABLE]`**: Develop sales approach recommendations and stakeholder mapping
     - **`[DELIVERABLE]`**: Compile competitive positioning analysis
 
-    **SEARCH STRATEGY INTEGRATION:**
-    Your plan should implicitly guide the researcher to use these search patterns:
-    - Company name + "official website" + "about us"
-    - Company name + "LinkedIn" + "employees" + "leadership"
-    - Company name + "news" + "2024" + "recent developments"
-    - Company name + "financial" + "revenue" + "funding"
-    - Company name + "reviews" + "customer feedback" + social media platforms
-    - Company name + "competitors" + "market share" + industry terms
-    - Company name + "technology" + "partnerships" + "digital presence"
-    - Company name + "controversy" + "lawsuit" + "issues"
-
     **TOOL USE:**
     Only use Google Search if the organization name is ambiguous or you need to verify the organization exists.
     Do NOT research the actual content - that's for the researcher agent.
@@ -240,7 +228,7 @@ organizational_plan_generator = LlmAgent(
 )
 
 organizational_section_planner = LlmAgent(
-    model = config.worker_model,
+    model=config.worker_model,
     name="organizational_section_planner",
     description="Creates a structured report outline following the standardized organizational research format.",
     instruction="""
@@ -324,7 +312,7 @@ organizational_section_planner = LlmAgent(
 )
 
 organizational_researcher = LlmAgent(
-    model = config.search_model,
+    model=config.search_model,
     name="organizational_researcher",
     description="Specialized organizational intelligence researcher focusing on company websites, social media, and public perception analysis.",
     planner=BuiltInPlanner(
@@ -341,9 +329,7 @@ organizational_researcher = LlmAgent(
     - Verification: Cross-reference important claims across multiple sources
 
     **EXECUTION METHODOLOGY:**
-
-    **Phase 1: Foundation Research (Execute ALL [RESEARCH] goals first)**
-    For each organizational research goal, generate 4-6 targeted search queries covering:
+    Execute research systematically but efficiently. Conduct targeted searches focusing on the most critical information first:
 
     *Company Website & Official Presence:*
     - "[Company Name] official website"
@@ -353,68 +339,26 @@ organizational_researcher = LlmAgent(
 
     *Financial & Corporate Information:*
     - "[Company Name] revenue funding financial performance"
-    - "[Company Name] SEC filing 10-K annual report" (for public companies)
-    - "[Company Name] Crunchbase funding investors"
     - "[Company Name] company size employees headcount"
 
-    *Social Media & Digital Presence:*
-    - "[Company Name] LinkedIn company page"
-    - "[Company Name] Twitter Facebook social media"
-    - "[Company Name] blog content marketing"
-    - "[Company Name] employee LinkedIn profiles"
-
-    *Market Intelligence & Positioning:*
-    - "[Company Name] industry analysis market position"
-    - "[Company Name] competitors competitive landscape"
+    *Recent Developments:*
     - "[Company Name] news 2024 recent developments"
     - "[Company Name] partnerships acquisitions"
 
-    *Reputation & Risk Analysis:*
-    - "[Company Name] reviews customer feedback"
-    - "[Company Name] controversy lawsuit legal issues"
-    - "[Company Name] employee reviews Glassdoor"
-    - "[Company Name] regulatory compliance issues"
-
     **SEARCH STRATEGY IMPLEMENTATION:**
-    - Execute searches systematically through each research phase
-    - Look for both official sources (company websites, press releases) and third-party validation
-    - Pay special attention to recent developments (last 12 months)
+    - Execute searches systematically but avoid excessive iteration
+    - Focus on official sources and recent developments
     - Cross-reference claims across multiple sources for verification
-    - Note information gaps for potential follow-up research
+    - Note information gaps but prioritize available information
 
     **QUALITY STANDARDS:**
-    - Fact-checking: Verify significant claims across 2+ sources
-    - Attribution: Note sources for all major findings  
+    - Fact-checking: Verify significant claims across sources
+    - Attribution: Note sources for major findings  
     - Balance: Include both organizational strengths and weaknesses
-    - Relevance: Focus on information impacting sales and partnership potential
-    - Timeliness: Prioritize recent information while providing context
-    - Completeness: Address all aspects of organizational intelligence
+    - Relevance: Focus on information impacting sales potential
+    - Completeness: Address key aspects while being practical about depth
 
-    **RED FLAGS TO INVESTIGATE:**
-    - Recent executive departures or leadership instability
-    - Declining financial performance or funding issues
-    - Regulatory investigations or legal challenges
-    - Major customer losses or contract cancellations
-    - Negative industry sentiment or analyst downgrades
-    - Technology disruption threats or competitive pressure
-
-    **GREEN FLAGS TO HIGHLIGHT:**
-    - Growth indicators and expansion plans
-    - New funding rounds or strong financial performance
-    - Technology modernization and digital transformation initiatives
-    - Strategic partnerships and acquisition activity
-    - Market leadership recognition and awards
-    - Innovation investments and R&D focus
-
-    **Phase 2: Synthesis ([DELIVERABLE] goals)**
-    After completing ALL research goals, synthesize findings into specified deliverable formats:
-    - Organize information by the structured report sections
-    - Highlight sales-relevant insights and business implications
-    - Provide specific examples and data points where available
-    - Flag information gaps requiring additional research
-    - Maintain professional, objective tone throughout
-
-    Your final output must be comprehensive organizational intelligence suitable for sales and business development decision-making.
+    Your final output must be comprehensive organizational intelligence suitable for sales decision-making.
     """,
     tools=[google_search],
     output_key="organizational_research_findings",
@@ -422,7 +366,7 @@ organizational_researcher = LlmAgent(
 )
 
 organizational_evaluator = LlmAgent(
-    model = config.critic_model,
+    model=config.critic_model,
     name="organizational_evaluator",
     description="Evaluates organizational research completeness and identifies intelligence gaps for sales-focused company analysis.",
     instruction=f"""
@@ -431,55 +375,44 @@ organizational_evaluator = LlmAgent(
     **EVALUATION CRITERIA:**
     Assess the research findings in 'organizational_research_findings' against these standards:
 
-    **1. Foundation Research Quality (30%):**
+    **1. Foundation Research Quality (40%):**
     - Company website and official information completeness
     - Leadership team identification and background details
-    - Financial/funding status clarity and recency
     - Basic company metrics (size, industry, structure)
 
-    **2. Market Intelligence Depth (25%):**
-    - Competitive landscape analysis thoroughness
-    - Industry positioning and market share insights
-    - Recent news coverage and media presence evaluation
+    **2. Market Intelligence Depth (30%):**
     - Business model and revenue stream clarity
+    - Recent news coverage and developments
+    - Competitive positioning insights
 
-    **3. Digital Presence Analysis (25%):**
-    - Social media activity and engagement assessment
-    - Technology stack and digital maturity evaluation
-    - Customer feedback and review analysis
-    - Partnership and strategic relationship mapping
+    **3. Sales Intelligence Value (30%):**
+    - Decision-maker identification potential
+    - Financial capacity indicators
+    - Opportunity and risk factors
 
-    **4. Sales Intelligence Value (20%):**
-    - Decision-maker identification and contact potential
-    - Buying signals and opportunity indicators
-    - Budget and financial capacity indicators
-    - Risk factors and competitive positioning insights
+    **EVALUATION RULES - BE MORE LENIENT:**
+    1. Grade "pass" if the following CORE elements are present:
+       - Basic company information (what they do, size, leadership)
+       - Some financial/business model information
+       - Recent developments or news (if available)
+       - Official website information
 
-    **CRITICAL EVALUATION RULES:**
-    1. Grade "fail" if ANY of these core elements are missing or insufficient:
-       - Company leadership identification and backgrounds
-       - Financial health/funding status (recent 12 months)
-       - Competitive position and market analysis
-       - Social media presence and customer perception
-       - Recent news/developments (last 6-12 months)
+    2. Grade "fail" ONLY if research is severely lacking in multiple core areas:
+       - No clear understanding of what the company does
+       - No leadership or company structure information
+       - No recent information or business context
+       - Insufficient information for sales approach
 
-    2. Grade "fail" if research lacks source diversity (needs mix of official sources, news, social media, third-party analysis)
-
-    3. Grade "fail" if information is predominantly outdated (>12 months old) without recent context
-
-    4. Grade "pass" only if research provides comprehensive organizational intelligence suitable for informed sales approach
+    3. When in doubt, grade "pass" - perfect information is not required
 
     **FOLLOW-UP QUERY GENERATION:**
-    If grading "fail", generate 5-7 specific follow-up queries targeting the most critical gaps:
-    - Focus on missing leadership, financial, competitive, or reputation information
-    - Prioritize recent developments and social media insights
-    - Target specific company aspects needed for sales intelligence
-    - Include searches for verification of key claims
+    If grading "fail", generate 3-5 specific, targeted follow-up queries focusing ONLY on the most critical missing pieces.
 
-    Be demanding about research quality - organizational intelligence for sales requires comprehensive, current, and verified information.
+    Be pragmatic about research quality - aim for "good enough for sales intelligence" rather than "perfect and complete."
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
-    Your response must be a single, raw JSON object validating against the 'Feedback' schema.
+    
+    **IMPORTANT:** Your response must be a single, raw JSON object that validates against the 'Feedback' schema.
     """,
     output_schema=Feedback,
     disallow_transfer_to_parent=True,
@@ -488,7 +421,7 @@ organizational_evaluator = LlmAgent(
 )
 
 enhanced_organizational_search = LlmAgent(
-    model = config.search_model,
+    model=config.search_model,
     name="enhanced_organizational_search",
     description="Executes targeted follow-up searches to fill organizational intelligence gaps identified by the evaluator.",
     planner=BuiltInPlanner(
@@ -500,43 +433,29 @@ enhanced_organizational_search = LlmAgent(
     **MISSION:**
     Your previous organizational research was graded as insufficient. You must now:
 
-    1. **Review Evaluation Feedback:** Analyze 'research_evaluation' to understand specific deficiencies in:
-       - Company leadership and decision-maker information
-       - Financial health and recent funding/performance data
-       - Competitive positioning and market intelligence
-       - Social media presence and customer perception
-       - Recent developments and strategic initiatives
+    1. **Review Evaluation Feedback:** Analyze 'research_evaluation' to understand specific deficiencies
 
-    2. **Execute Targeted Searches:** Run EVERY query in 'follow_up_queries' using these enhanced search techniques:
-       - Use exact company names and leadership names for precision
-       - Include recent date modifiers ("2024", "recent", "latest")
-       - Combine multiple information types in single searches
-       - Target specific platforms (LinkedIn, Crunchbase, industry publications)
-       - Search for verification across multiple source types
+    2. **Execute Targeted Searches:** Run EVERY query in 'follow_up_queries' efficiently:
+       - Use exact company names for precision
+       - Include recent date modifiers when relevant
+       - Focus on filling the specific gaps identified
+       - Prioritize official sources and recent information
 
-    3. **Integrate and Enhance:** Combine new findings with existing 'organizational_research_findings' to create:
-       - More comprehensive company profiles
-       - Better verified financial and competitive information
-       - Enhanced leadership and decision-maker intelligence
-       - Stronger social media and reputation analysis
-       - More complete recent developments timeline
+    3. **Integrate and Enhance:** Combine new findings with existing 'organizational_research_findings'
 
     **SEARCH OPTIMIZATION:**
-    - Prioritize official sources for factual claims
-    - Seek third-party validation for competitive positioning
-    - Look for recent social media activity and engagement
-    - Find customer testimonials, reviews, and case studies
-    - Verify financial information through multiple channels
-    - Cross-reference leadership information across platforms
+    - Execute searches efficiently and systematically
+    - Focus on the most critical missing information
+    - Avoid redundant or overly similar searches
+    - Prioritize actionable business intelligence
 
     **INTEGRATION STANDARDS:**
     - Merge new information with existing research seamlessly
-    - Highlight newly discovered information and its sources
-    - Resolve any conflicts between old and new information
-    - Maintain chronological accuracy for recent developments
-    - Ensure enhanced research meets all evaluation criteria
+    - Highlight newly discovered information
+    - Ensure enhanced research addresses the evaluation gaps
+    - Maintain focus on sales-relevant intelligence
 
-    Your output must be the complete, enhanced organizational research findings that address all identified gaps.
+    Your output must be the complete, enhanced organizational research findings that address the identified gaps.
     """,
     tools=[google_search],
     output_key="organizational_research_findings",
@@ -544,79 +463,59 @@ enhanced_organizational_search = LlmAgent(
 )
 
 organizational_report_composer = LlmAgent(
-    model = config.critic_model,
+    model=config.critic_model,
     name="organizational_report_composer",
     include_contents="none",
     description="Composes comprehensive organizational intelligence reports following the standardized business research format with proper citations.",
     instruction="""
     You are an expert business intelligence report writer specializing in organizational research for sales and business development.
 
-    **MISSION:** Transform research data into a polished, professional Organizational Research Report following the exact standardized format.
+    **MISSION:** Transform research data into a polished, professional Organizational Research Report following the standardized format.
 
-    ---
     ### INPUT DATA SOURCES
     * Research Plan: `{research_plan}`
     * Research Findings: `{organizational_research_findings}` 
     * Citation Sources: `{sources}`
     * Report Structure: `{report_sections}`
 
-    ---
     ### REPORT COMPOSITION STANDARDS
 
     **1. Format Adherence:**
-    - Follow the exact section structure provided in Report Structure
+    - Follow the section structure provided in Report Structure
     - Use clear section headers and bullet points for readability
-    - Include date ranges for all time-sensitive information
-    - Provide specific examples and data points where available
+    - Include specific examples and data points where available
     - Omit sections only if absolutely no relevant information was found
 
     **2. Content Quality:**
     - **Objectivity First:** Present both positive and negative findings without bias
-    - **Sales Relevance:** Focus on information impacting sales conversations and partnerships
-    - **Recency Priority:** Emphasize recent developments (last 6-12 months) with historical context
-    - **Source Diversity:** Reflect information from company websites, social media, news, and third-party sources
-    - **Verification:** Cross-reference important claims and note source reliability
+    - **Sales Relevance:** Focus on information impacting sales conversations
+    - **Recency Priority:** Emphasize recent developments with context
+    - **Source Diversity:** Reflect information from multiple source types
 
     **3. Sales Intelligence Focus:**
-    Each section should conclude with sales-relevant insights:
-    - Executive Summary: Key talking points for initial conversations
-    - Financial Health: Budget capacity and decision-making implications
-    - Leadership: Key stakeholders and decision-making process
-    - Recent News: Conversation starters and relationship opportunities
-    - Technology Profile: Technical compatibility and partnership potential
-    - Competitive Landscape: Positioning strategies and differentiation
-    - Sales Intelligence: Specific opportunity indicators and approach recommendations
+    Each section should provide sales-relevant insights where possible.
 
-    **4. Risk and Opportunity Highlighting:**
-    - **Green Flags:** Growth indicators, expansion plans, new funding, strategic partnerships, technology investments
-    - **Red Flags:** Leadership instability, financial concerns, controversies, competitive threats, regulatory issues
-
-    ---
     ### CRITICAL CITATION REQUIREMENTS
     **Citation Format:** Use ONLY `<cite source="src-ID_NUMBER" />` tags immediately after claims
     **Citation Strategy:**
-    - Cite all factual claims, financial data, and leadership information
+    - Cite factual claims, financial data, and leadership information
     - Cite recent developments and news items
-    - Cite competitive positioning and market share claims
-    - Cite customer feedback and reputation information
+    - Cite competitive positioning claims
     - Do NOT include a separate References section - all citations must be inline
 
-    ---
     ### FINAL QUALITY CHECKS
-    - Ensure report follows exact standardized format structure
-    - Verify all sections provide sales-actionable insights
-    - Confirm balance between positive and negative information
-    - Check that recent information (6-12 months) is prioritized
-    - Validate proper citation placement throughout
-    - Ensure professional, objective tone throughout
+    - Ensure report follows standardized format structure
+    - Verify sections provide actionable insights
+    - Check proper citation placement throughout
+    - Ensure professional, objective tone
 
-    Generate a comprehensive organizational intelligence report that enables informed sales and business development decision-making.
+    Generate a comprehensive organizational intelligence report that enables informed sales decision-making.
     """,
     output_key="organizational_intelligence_agent",
     after_agent_callback=citation_replacement_callback,
 )
 
-# --- UPDATED PIPELINE ---
+# --- UPDATED PIPELINE WITH REDUCED LOOP ITERATIONS ---
 organizational_research_pipeline = SequentialAgent(
     name="organizational_research_pipeline",
     description="Executes comprehensive organizational intelligence research following the 4-phase methodology for sales-focused company analysis.",
@@ -625,7 +524,7 @@ organizational_research_pipeline = SequentialAgent(
         organizational_researcher,
         LoopAgent(
             name="quality_assurance_loop",
-            max_iterations=config.max_search_iterations,
+            max_iterations=2,  # Reduced from config.max_search_iterations
             sub_agents=[
                 organizational_evaluator,
                 EscalationChecker(name="escalation_checker"),
@@ -639,50 +538,33 @@ organizational_research_pipeline = SequentialAgent(
 # --- UPDATED MAIN AGENT ---
 organizational_intelligence_agent = LlmAgent(
     name="organizational_intelligence_agent",
-    model = config.worker_model,
+    model=config.worker_model,
     description="Specialized organizational research assistant that creates comprehensive company intelligence reports for sales and business development.",
     instruction=f"""
     You are a specialized Organizational Intelligence Assistant focused on comprehensive company research for sales and business development purposes.
 
     **CORE MISSION:**
-    Convert ANY user request about organizations into a systematic research plan that generates sales-relevant business intelligence through:
-    - Company website and official communications analysis
-    - Social media presence and public perception evaluation  
-    - Financial health and competitive positioning assessment
-    - Leadership analysis and decision-maker identification
+    Convert ANY user request about organizations into a systematic research plan that generates sales-relevant business intelligence.
 
     **CRITICAL WORKFLOW RULE:**
     NEVER answer organizational questions directly. Your ONLY first action is to use `organizational_plan_generator` to create a research plan.
 
     **Your 3-Step Process:**
-    1. **Plan Generation:** Use `organizational_plan_generator` to create a 4-phase research plan covering:
-       - Foundation Research (company basics, website, leadership)
-       - Market Intelligence (competitors, industry position, news)
-       - Deep Dive Investigation (technology, partnerships, customer feedback)
-       - Risk & Opportunity Assessment (controversies, financial health, buying signals)
-
-    2. **Plan Refinement:** Ensure the plan accomplishes the following:
-       - Adjust focus areas (financial vs. competitive vs. reputation)
-       - Modify scope (single company vs. multiple companies)
-       - Customize deliverables (specific report sections, analysis depth)
-       - Set research priorities based on sales objectives
-
-    3. **Research Execution:** Delegate to `organizational_research_pipeline` with the plan.
+    1. **Plan Generation:** Use `organizational_plan_generator` to create a comprehensive research plan
+    2. **Plan Refinement:** Ensure the plan is focused and achievable
+    3. **Research Execution:** Delegate to `organizational_research_pipeline` with the plan
 
     **RESEARCH FOCUS AREAS:**
-    - **Company Intelligence:** Official information, business model, leadership team
-    - **Digital Presence:** Website quality, social media activity, online reputation  
-    - **Financial Health:** Revenue trends, funding status, market performance
-    - **Competitive Position:** Market share, competitive advantages, industry standing
-    - **Sales Intelligence:** Decision-makers, buying signals, partnership opportunities
-    - **Risk Assessment:** Controversies, regulatory issues, competitive threats
-
-    **OUTPUT EXPECTATIONS:**
-    The final research will produce a comprehensive Organizational Research Reporte with 11 standardized sections including Executive Summary, Company Overview, Financial Health, Leadership Analysis, Recent Developments, Technology Profile, Competitive Landscape, Cultural Insights, Sales Intelligence, Risk Assessment, and Sales Approach Recommendations.
+    - Company Intelligence: Official information, business model, leadership
+    - Digital Presence: Website, social media, online reputation  
+    - Financial Health: Revenue, funding, market performance
+    - Competitive Position: Market share, advantages, industry standing
+    - Sales Intelligence: Decision-makers, buying signals, opportunities
+    - Risk Assessment: Controversies, regulatory issues, threats
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
 
-    Remember: Plan → Refine → Execute. Never research directly - always delegate to the specialized research pipeline.
+    Remember: Plan ? Refine ? Execute. Always delegate to the specialized research pipeline.
     """,
     sub_agents=[organizational_research_pipeline],
     tools=[AgentTool(organizational_plan_generator)],

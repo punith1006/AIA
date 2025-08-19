@@ -429,6 +429,8 @@ persona_data_generator = LlmAgent(
     Generate personas as a PersonaDataCollection containing 4-6 personas optimized for Apollo.io parameter mapping.
     """,
     output_schema=PersonaDataCollection,
+    disallow_transfer_to_parent=True,
+    disallow_transfer_to_peers=True,
     output_key="persona_data_collection",
 )
 
@@ -490,6 +492,8 @@ apollo_parameter_generator = LlmAgent(
     Generate a single ApolloSearchParameters object that maximizes relevant lead discovery across all personas.
     """,
     output_schema=ApolloSearchParameters,
+    disallow_transfer_to_parent=True,
+    disallow_transfer_to_peers=True,
     output_key="prospect_researcher",
 )
 

@@ -408,13 +408,13 @@ comprehensive_intelligence_chancellor = SequentialAgent(
         
         1. Analyze user input for specific target organizations
         2. Create blank project document in MongoDB
-        3. Market Intelligence Analysis → Auto-stored to market_context via callback
-        4. Market Segmentation Analysis → Auto-stored to market_segment via callback
-        5. Organizational Intelligence Research → Auto-stored to client_org_research via callback
-        6. [CONDITIONAL] Sales Intelligence Research → Auto-stored to target_org_research via callback
+        3. Market Intelligence Analysis â†’ Auto-stored to market_context via callback
+        4. Market Segmentation Analysis â†’ Auto-stored to market_segment via callback
+        5. Organizational Intelligence Research â†’ Auto-stored to client_org_research via callback
+        6. [CONDITIONAL] Sales Intelligence Research â†’ Auto-stored to target_org_research via callback
            - Only executes if user specified particular organizations (e.g., "target Microsoft and Google")
            - Skips if user only mentioned general categories (e.g., "target tech companies")
-        7. Prospect Research → Auto-stored to prospect_research via callback
+        7. Prospect Research â†’ Auto-stored to prospect_research via callback
         
         Each research agent now has an after_agent_callback that automatically stores its report to MongoDB
         using the project_id extracted from the initial input. This ensures consistent storage without
