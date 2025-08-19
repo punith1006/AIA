@@ -1,5 +1,6 @@
 import os
 from pymongo import MongoClient
+import requests,json
 
 def create_blank_project(project_id: str):
     """
@@ -54,6 +55,8 @@ def update_project_report(project_id: str, report: str, report_type: str):
         {"project_id": project_id},
         {"$set": {report_type: report}}
     )
+
+    requests.put(f"https://stu.globalknowledgetech.com:8444/project/project-status-update/{project_id}/",headers = {'Content-Type': 'application/json'}, data = json.dumps({"status": f"{report_type} updated"}))
 
     client.close()
 

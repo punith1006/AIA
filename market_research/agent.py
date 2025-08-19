@@ -422,7 +422,7 @@ comprehensive_intelligence_chancellor = SequentialAgent(
     """,
     sub_agents=[
         user_input_analyzer,                    # Analyze input + extract project_id
-        project_creator,                        # Create project
+        # project_creator,                        # Create project
         market_prompt_builder,                  # Build market prompt
         market_intelligence_agent,              # Execute market intelligence + auto-store
         segmentation_prompt_builder,            # Build segmentation prompt
