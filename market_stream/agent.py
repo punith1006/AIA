@@ -14,11 +14,10 @@ from .config import config
 # Storage Callback Functions
 # ----------------------------------------------------------------------
 def store_segmentation_report(callback_context: CallbackContext):
-    """Store segmentation report after segmentation report composer completes"""
+    """Store segmentation report after segmentation_intelligence_agent completes"""
     try:
         project_id = callback_context.state.get('project_id')
         project_id = project_id.replace('"','')
-        # Get the final composed report, not from coordinator agent
         segmentation_report = callback_context.state.get('segmentation_intelligence_agent')
         
         if project_id and segmentation_report:
@@ -94,18 +93,14 @@ def extract_project_id(callback_context: CallbackContext):
         print(f"Error extracting project_id: {e}")
 
 # ----------------------------------------------------------------------
-# Fix output keys to avoid collisions - CRITICAL FIX
+# Ensure output_key is consistent for all imported sub-agents
 # ----------------------------------------------------------------------
-# Remove conflicting output key assignments
-# segmentation_intelligence_agent.output_key = "segmentation_intelligence_agent"  # REMOVED
+segmentation_intelligence_agent.output_key = "segmentation_intelligence_agent"
 organizational_intelligence_agent.output_key = "organizational_intelligence_agent"
 prospect_researcher.output_key = "prospect_researcher"
 
-# CRITICAL: Import the actual report composer to attach callback to the right agent
-from .sub_agents.segmentation.segment_agent import segmentation_report_composer
-
-# Attach callback to the actual report composer, not the coordinator
-segmentation_report_composer.after_agent_callback = [store_segmentation_report]
+# Add after-agent callbacks for storage
+segmentation_intelligence_agent.after_agent_callback = [store_segmentation_report]
 organizational_intelligence_agent.after_agent_callback = [store_organizational_report]
 prospect_researcher.after_agent_callback = [store_prospect_report]
 
@@ -137,10 +132,8 @@ segmentation_prompt_builder = LlmAgent(
     model = config.worker_model,
     description="Generates JSON input for segmentation_intelligence_agent from user input.",
     instruction="""
-        Based on the user input and organizational research report, create a JSON object for market segmentation analysis.
+        Based on the user input, create a JSON object for market segmentation analysis.
         
-        Organizational Report: {organizational_intelligence_agent}
-
         Output ONLY a valid JSON object in the following format. Do not include any extra text or commentary.
         {
             "product_name": "Your Product Name Here",
@@ -252,10 +245,10 @@ simplified_intelligence_agent = SequentialAgent(
     sub_agents=[
         input_analyzer,                         # Analyze input + extract project_id
         project_creator,                        # Create blank project in MongoDB
+        segmentation_prompt_builder,            # Build segmentation prompt
+        segmentation_intelligence_agent,        # Execute segmentation + auto-store
         org_prompt_builder,                     # Build org prompt  
         organizational_intelligence_agent,      # Execute org intelligence + auto-store
-        segmentation_prompt_builder,            # Build segmentation prompt
-        segmentation_intelligence_agent,        # Execute segmentation + auto-store (callback attached to composer)
         prospect_prompt_builder,                # Build prospect prompt
         prospect_researcher,                    # Execute prospect research + auto-store
     ]

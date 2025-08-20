@@ -131,7 +131,6 @@ def wikipedia_citation_replacement_callback(callback_context: CallbackContext) -
         processed_report += references_section
     
     callback_context.state["segmentation_intelligence_agent"] = processed_report
-    # callback_context.state["final_segmentation_report"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
 
 # --- Custom Agent for Loop Control ---
