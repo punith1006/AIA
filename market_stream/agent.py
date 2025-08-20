@@ -19,7 +19,7 @@ def store_segmentation_report(callback_context: CallbackContext):
         project_id = callback_context.state.get('project_id')
         project_id = project_id.replace('"','')
         # Get the final composed report, not from coordinator agent
-        segmentation_report = callback_context.state.get('final_segmentation_report')
+        segmentation_report = callback_context.state.get('segmentation_intelligence_agent')
         
         if project_id and segmentation_report:
             update_project_report(
@@ -195,7 +195,7 @@ prospect_prompt_builder = LlmAgent(
     instruction="""
         Using the user input, segmentation report, and organizational report, create a JSON object for prospect research.
         
-        Segmentation Report: {final_segmentation_report}
+        Segmentation Report: {segmentation_intelligence_agent}
         Organizational Report: {organizational_intelligence_agent}
         
         Output ONLY a valid JSON object:
