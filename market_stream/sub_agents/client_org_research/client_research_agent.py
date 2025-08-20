@@ -574,16 +574,17 @@ organizational_report_composer = LlmAgent(
     after_agent_callback=citation_replacement_callback,
 )
 
-# --- UPDATED PIPELINE WITH BETTER LOOP CONTROL ---
+# --- FIXED PIPELINE WITH PLAN GENERATOR INCLUDED ---
 organizational_research_pipeline = SequentialAgent(
     name="organizational_research_pipeline",
     description="Executes comprehensive organizational intelligence research following the 4-phase methodology for sales-focused company analysis.",
     sub_agents=[
+        organizational_plan_generator,  # Move plan generator HERE
         organizational_section_planner,
         organizational_researcher,
         LoopAgent(
             name="quality_assurance_loop",
-            max_iterations=2,  # Keep at 2 for efficiency
+            max_iterations=2,
             sub_agents=[
                 organizational_evaluator,
                 EscalationChecker(name="escalation_checker"),
@@ -594,7 +595,7 @@ organizational_research_pipeline = SequentialAgent(
     ],
 )
 
-# --- MAIN AGENT (unchanged) ---
+# --- FIXED MAIN AGENT (Remove tools and simplify) ---
 organizational_intelligence_agent = LlmAgent(
     name="organizational_intelligence_agent",
     model=config.worker_model,
@@ -603,17 +604,21 @@ organizational_intelligence_agent = LlmAgent(
     You are a specialized Organizational Intelligence Assistant focused on comprehensive company research for sales and business development purposes.
 
     **CORE MISSION:**
-    Convert ANY user request about organizations into a systematic research plan that generates sales-relevant business intelligence.
+    Process user requests about organizations and delegate to the research pipeline that will:
+    1. Generate a comprehensive research plan
+    2. Structure the report sections  
+    3. Execute systematic research
+    4. Evaluate and enhance findings
+    5. Compose the final intelligence report
 
-    **CRITICAL WORKFLOW RULE:**
-    NEVER answer organizational questions directly. Your ONLY first action is to use `organizational_plan_generator` to create a research plan.
-
-    **Your 3-Step Process:**
-    1. **Plan Generation:** Use `organizational_plan_generator` to create a comprehensive research plan
-    2. **Plan Refinement:** Ensure the plan is focused and achievable
-    3. **Research Execution:** Delegate to `organizational_research_pipeline` with the plan
+    **YOUR ROLE:**
+    - Understand the user's organizational research needs
+    - Provide context about what will be researched
+    - Delegate to the specialized research pipeline
+    - Present the final comprehensive report
 
     **RESEARCH FOCUS AREAS:**
+    The pipeline will investigate:
     - Company Intelligence: Official information, business model, leadership
     - Digital Presence: Website, social media, online reputation  
     - Financial Health: Revenue, funding, market performance
@@ -623,11 +628,10 @@ organizational_intelligence_agent = LlmAgent(
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
 
-    Remember: Plan → Refine → Execute. Always delegate to the specialized research pipeline.
+    Simply delegate to the research pipeline - it will handle the complete research process.
     """,
     sub_agents=[organizational_research_pipeline],
-    tools=[AgentTool(organizational_plan_generator)],
-    output_key="client_org_research_plan",
+    # Remove the tools line - no need for AgentTool here
+    output_key="client_org_research_final",
 )
-
 # root_agent = organizational_intelligence_agent
