@@ -20,7 +20,6 @@ from ...config import config
 # --- Structured Output Models ---
 class SearchQuery(BaseModel):
     """Model representing a specific search query for organizational research."""
-
     search_query: str = Field(
         description="A highly specific and targeted query for organizational web search, focusing on company information, social media, and public perception."
     )
@@ -28,9 +27,15 @@ class SearchQuery(BaseModel):
         description="The research phase this query belongs to: 'foundation', 'market_intelligence', 'deep_dive', or 'risk_assessment'"
     )
 
+class ResearchSection(BaseModel):
+    """Model for a single research section with content and citations."""
+    section_id: str = Field(description="Unique identifier for the section")
+    title: str = Field(description="Section title")
+    content: str = Field(description="Detailed section content with inline citations")
+    subsections: list[dict] = Field(default=[], description="List of subsections with title and content")
+
 class Feedback(BaseModel):
     """Model for providing evaluation feedback on organizational research quality."""
-
     grade: Literal["pass", "fail"] = Field(
         description="Evaluation result. 'pass' if the research meets organizational intelligence standards, 'fail' if it needs more depth."
     )
@@ -39,12 +44,12 @@ class Feedback(BaseModel):
     )
     follow_up_queries: list[SearchQuery] | None = Field(
         default=None,
-        description="Specific follow-up searches needed to fill organizational intelligence gaps. Should focus on missing company data, leadership info, financial status, or market position.",
+        description="Specific follow-up searches needed to fill organizational intelligence gaps.",
     )
 
-# --- Callbacks ---
+# --- Enhanced Callbacks ---
 def collect_research_sources_callback(callback_context: CallbackContext) -> None:
-    """Collects and organizes web-based research sources and their supported claims from agent events."""
+    """Collects and organizes web-based research sources with enhanced metadata."""
     session = callback_context._invocation_context.session
     url_to_short_id = callback_context.state.get("url_to_short_id", {})
     sources = callback_context.state.get("sources", {})
@@ -53,16 +58,20 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
     for event in session.events:
         if not (event.grounding_metadata and event.grounding_metadata.grounding_chunks):
             continue
+        
         chunks_info = {}
         for idx, chunk in enumerate(event.grounding_metadata.grounding_chunks):
             if not chunk.web:
                 continue
+            
             url = chunk.web.uri
-            title = (
-                chunk.web.title
-                if chunk.web.title != chunk.web.domain
-                else chunk.web.domain
-            )
+            title = chunk.web.title if chunk.web.title != chunk.web.domain else chunk.web.domain
+            domain = chunk.web.domain or "unknown"
+            
+            # Handle cases where title might be None
+            if not title or title == domain:
+                title = domain or "Unknown Source"
+            
             if url not in url_to_short_id:
                 short_id = f"src-{id_counter}"
                 url_to_short_id[url] = short_id
@@ -70,8 +79,10 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
                     "short_id": short_id,
                     "title": title,
                     "url": url,
-                    "domain": chunk.web.domain,
+                    "domain": domain,
                     "supported_claims": [],
+                    "access_date": datetime.datetime.now().strftime("%Y-%m-%d"),
+                    "source_type": _classify_source_type(domain, url)
                 }
                 id_counter += 1
             chunks_info[idx] = url_to_short_id[url]
@@ -83,199 +94,480 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
                 for i, chunk_idx in enumerate(chunk_indices):
                     if chunk_idx in chunks_info:
                         short_id = chunks_info[chunk_idx]
-                        confidence = (
-                            confidence_scores[i] if i < len(confidence_scores) else 0.5
-                        )
+                        confidence = confidence_scores[i] if i < len(confidence_scores) else 0.5
                         text_segment = support.segment.text if support.segment else ""
-                        sources[short_id]["supported_claims"].append(
-                            {
-                                "text_segment": text_segment,
-                                "confidence": confidence,
-                            }
-                        )
+                        sources[short_id]["supported_claims"].append({
+                            "text_segment": text_segment,
+                            "confidence": confidence,
+                        })
     
     callback_context.state["url_to_short_id"] = url_to_short_id
     callback_context.state["sources"] = sources
 
-def citation_replacement_callback(
-    callback_context: CallbackContext,
-) -> genai_types.Content:
-    """Replaces citation tags in a report with Wikipedia-style clickable numbered references."""
-    final_report = callback_context.state.get("organizational_intelligence_agent", "")
-    sources = callback_context.state.get("sources", {})
+def _classify_source_type(domain: str, url: str) -> str:
+    """Classify source type based on domain and URL patterns."""
+    # Handle None values safely
+    domain_lower = (domain or "").lower()
+    url_lower = (url or "").lower()
+    
+    if any(x in domain_lower for x in ['linkedin.com', 'twitter.com', 'facebook.com', 'instagram.com']):
+        return "Social Media"
+    elif any(x in domain_lower for x in ['sec.gov', 'edgar', 'bloomberg.com', 'reuters.com']):
+        return "Financial"
+    elif any(x in domain_lower for x in ['crunchbase.com', 'pitchbook.com']):
+        return "Business Database"
+    elif 'news' in domain_lower or any(x in domain_lower for x in ['cnn.com', 'bbc.com', 'wsj.com']):
+        return "News Media"
+    elif any(x in url_lower for x in ['about', 'company', 'leadership', 'team']):
+        return "Company Official"
+    else:
+        return "Industry/Other"
 
-    # Assign each short_id a numeric index
+def html_report_generator_callback(callback_context: CallbackContext) -> genai_types.Content:
+    """Generates a polished HTML report with Wikipedia-style citations and professional styling."""
+    report_content = callback_context.state.get("organizational_intelligence_report", "")
+    sources = callback_context.state.get("sources", {})
+    
+    # Create citation mapping
     short_id_to_index = {}
     for idx, short_id in enumerate(sorted(sources.keys()), start=1):
         short_id_to_index[short_id] = idx
 
-    # Replace <cite> tags with clickable reference links
-    def tag_replacer(match: re.Match) -> str:
+    # Replace citation tags with numbered superscript links
+    def citation_replacer(match: re.Match) -> str:
         short_id = match.group(1)
         if short_id not in short_id_to_index:
-            logging.warning(f"Invalid citation tag found and removed: {match.group(0)}")
+            logging.warning(f"Invalid citation: {match.group(0)}")
             return ""
         index = short_id_to_index[short_id]
-        return f"[<a href=\"#ref{index}\">{index}</a>]"
+        return f'<sup><a href="#ref{index}" class="citation-link">[{index}]</a></sup>'
 
-    processed_report = re.sub(
+    # Process citations
+    processed_content = re.sub(
         r'<cite\s+source\s*=\s*["\']?\s*(src-\d+)\s*["\']?\s*/?>',
-        tag_replacer,
-        final_report,
+        citation_replacer,
+        report_content
     )
-    processed_report = re.sub(r"\s+([.,;:])", r"\1", processed_report)
-
-    # Build a Wikipedia-style References section with anchors
-    references = "\n\n## References\n"
+    
+    # Generate references section
+    references_html = "\n<h2 id='references'>References</h2>\n<ol class='references-list'>\n"
     for short_id, idx in sorted(short_id_to_index.items(), key=lambda x: x[1]):
-        source_info = sources[short_id]
-        domain = source_info.get('domain', '')
-        references += (
-            f"<p id=\"ref{idx}\">[{idx}] "
-            f"<a href=\"{source_info['url']}\">{source_info['title']}</a>"
-            f"{f' ({domain})' if domain else ''}</p>\n"
+        source = sources[short_id]
+        source_type = source.get('source_type', 'Web')
+        access_date = source.get('access_date', datetime.datetime.now().strftime("%Y-%m-%d"))
+        
+        references_html += (
+            f'<li id="ref{idx}">'
+            f'<a href="{source["url"]}" target="_blank" rel="noopener">{source["title"]}</a>. '
+            f'<em>{source["domain"]}</em>. '
+            f'<span class="source-type">[{source_type}]</span> '
+            f'<span class="access-date">Retrieved {access_date}</span>'
+            f'</li>\n'
         )
-
-    processed_report += references
-    callback_context.state["organizational_intelligence_agent"] = processed_report
-    return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
-
-# --- FIXED Custom Agent for Loop Control ---
-class EscalationChecker(BaseAgent):
-    """Checks research evaluation and escalates to stop the loop if grade is 'pass'."""
-
-    def __init__(self, name: str):
-        super().__init__(name=name)
-
-    async def _run_async_impl(
-        self, ctx: InvocationContext
-    ) -> AsyncGenerator[Event, None]:
-        # Get evaluation from the session state with more robust checking
-        evaluation_result = None
+    references_html += "</ol>\n"
+    
+    # Create complete HTML document
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organizational Intelligence Report</title>
+    <style>
+        /* Professional Report Styling */
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
         
-        # Try multiple ways to get the evaluation result
-        try:
-            # Method 1: Direct from session state
-            evaluation_result = ctx.session.state.get("research_evaluation")
-            logging.info(f"[{self.name}] Found evaluation in session state: {evaluation_result}")
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }}
+        
+        .report-container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }}
+        
+        .report-header {{
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }}
+        
+        .report-header::before {{
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }}
+        
+        .report-header h1 {{
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }}
+        
+        .report-subtitle {{
+            font-size: 1.2em;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }}
+        
+        .report-meta {{
+            background: #f8f9fa;
+            padding: 20px 40px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.9em;
+            color: #6c757d;
+        }}
+        
+        .report-content {{
+            padding: 40px;
+        }}
+        
+        .table-of-contents {{
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 40px;
+            border-left: 4px solid #667eea;
+        }}
+        
+        .table-of-contents h2 {{
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }}
+        
+        .toc-list {{
+            list-style: none;
+        }}
+        
+        .toc-list li {{
+            margin: 8px 0;
+        }}
+        
+        .toc-list a {{
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }}
+        
+        .toc-list a:hover {{
+            color: #764ba2;
+            text-decoration: underline;
+        }}
+        
+        h1, h2, h3, h4 {{
+            color: #2c3e50;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }}
+        
+        h1 {{
+            font-size: 2.2em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }}
+        
+        h2 {{
+            font-size: 1.8em;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 8px;
+        }}
+        
+        h3 {{
+            font-size: 1.4em;
+            color: #495057;
+        }}
+        
+        h4 {{
+            font-size: 1.2em;
+            color: #6c757d;
+        }}
+        
+        p {{
+            margin-bottom: 16px;
+            text-align: justify;
+        }}
+        
+        .executive-summary {{
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 4px solid #ff6b6b;
+        }}
+        
+        .section-highlight {{
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }}
+        
+        .financial-metrics {{
+            background: #e8f5e8;
+            border-left: 4px solid #4caf50;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }}
+        
+        .risk-warning {{
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }}
+        
+        .key-insights {{
+            background: #f3e5f5;
+            border-left: 4px solid #9c27b0;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }}
+        
+        ul, ol {{
+            margin: 16px 0 16px 30px;
+        }}
+        
+        li {{
+            margin: 8px 0;
+        }}
+        
+        .citation-link {{
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }}
+        
+        .citation-link:hover {{
+            color: #764ba2;
+        }}
+        
+        .references-list {{
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }}
+        
+        .references-list li {{
+            margin: 15px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }}
+        
+        .references-list a {{
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }}
+        
+        .references-list a:hover {{
+            text-decoration: underline;
+        }}
+        
+        .source-type {{
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin: 0 5px;
+        }}
+        
+        .access-date {{
+            color: #6c757d;
+            font-style: italic;
+            font-size: 0.85em;
+        }}
+        
+        .data-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }}
+        
+        .data-card {{
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }}
+        
+        .data-card h4 {{
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }}
+        
+        .metric-value {{
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #2c3e50;
+            margin: 5px 0;
+        }}
+        
+        .metric-label {{
+            color: #6c757d;
+            font-size: 0.9em;
+        }}
+        
+        @media (max-width: 768px) {{
+            .report-header {{
+                padding: 20px;
+            }}
             
-            # Method 2: Look for the most recent evaluation event
-            if not evaluation_result:
-                for event in reversed(ctx.session.events):
-                    if hasattr(event, 'author') and event.author == 'organizational_evaluator':
-                        if hasattr(event, 'content') and event.content:
-                            # Try to extract evaluation from event content
-                            content_text = str(event.content)
-                            if '"grade"' in content_text and '"pass"' in content_text:
-                                evaluation_result = {"grade": "pass"}
-                                logging.info(f"[{self.name}] Found 'pass' grade in evaluator event content")
-                                break
-                            elif '"grade"' in content_text and '"fail"' in content_text:
-                                evaluation_result = {"grade": "fail"}
-                                logging.info(f"[{self.name}] Found 'fail' grade in evaluator event content")
-                                break
-                
-            # Method 3: Check if we have any evaluation result stored anywhere in state
-            if not evaluation_result:
-                for key, value in ctx.session.state.items():
-                    if isinstance(value, dict) and "grade" in value:
-                        evaluation_result = value
-                        logging.info(f"[{self.name}] Found evaluation in state key '{key}': {evaluation_result}")
-                        break
-                    elif hasattr(value, 'grade'):
-                        evaluation_result = {"grade": value.grade}
-                        logging.info(f"[{self.name}] Found evaluation object with grade: {evaluation_result}")
-                        break
-
-        except Exception as e:
-            logging.error(f"[{self.name}] Error retrieving evaluation result: {e}")
-        
-        # Determine if we should escalate (pass grade) or continue (fail grade or no result)
-        should_escalate = False
-        
-        if evaluation_result:
-            # Handle dictionary format
-            if isinstance(evaluation_result, dict):
-                grade = evaluation_result.get("grade", "").lower()
-                should_escalate = grade == "pass"
-            # Handle object format
-            elif hasattr(evaluation_result, 'grade'):
-                grade = str(evaluation_result.grade).lower()
-                should_escalate = grade == "pass"
-            # Handle string format (just in case)
-            elif isinstance(evaluation_result, str):
-                should_escalate = "pass" in evaluation_result.lower()
-        
-        if should_escalate:
-            logging.info(f"[{self.name}] Research evaluation PASSED. Escalating to stop loop.")
-            yield Event(author=self.name, actions=EventActions(escalate=True))
-        else:
-            logging.info(f"[{self.name}] Research evaluation FAILED or not found. Loop will continue.")
-            # Store a counter to prevent infinite loops as safety measure
-            loop_counter = ctx.session.state.get("escalation_check_counter", 0) + 1
-            ctx.session.state["escalation_check_counter"] = loop_counter
+            .report-header h1 {{
+                font-size: 1.8em;
+            }}
             
-            # Safety valve: Force escalation after too many attempts
-            if loop_counter >= 3:
-                logging.warning(f"[{self.name}] Safety valve triggered after {loop_counter} attempts. Forcing escalation.")
-                yield Event(author=self.name, actions=EventActions(escalate=True))
-            else:
-                yield Event(author=self.name)
+            .report-content {{
+                padding: 20px;
+            }}
+            
+            .data-grid {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+        
+        /* Smooth scrolling */
+        html {{
+            scroll-behavior: smooth;
+        }}
+        
+        /* Print styles */
+        @media print {{
+            body {{
+                background: white;
+                font-size: 12pt;
+            }}
+            
+            .report-container {{
+                box-shadow: none;
+                border-radius: 0;
+            }}
+            
+            .report-header {{
+                background: #667eea !important;
+                color: white !important;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        {processed_content}
+        {references_html}
+    </div>
+</body>
+</html>"""
+    
+    callback_context.state["organizational_intelligence_agent"] = html_content
+    return genai_types.Content(parts=[genai_types.Part(text=html_content)])
 
-# --- ENHANCED AGENT DEFINITIONS ---
+# --- Enhanced Agent Definitions ---
 organizational_plan_generator = LlmAgent(
     model=config.search_model,
     name="organizational_plan_generator",
-    description="Generates comprehensive organizational research plans focused on company intelligence, social media presence, and market positioning.",
+    description="Generates comprehensive organizational research plans with exact name matching and detailed search strategies.",
     instruction=f"""
-    You are an expert organizational intelligence strategist specializing in company research for sales and business development.
+    You are an expert organizational intelligence strategist specializing in comprehensive company research for sales and business development.
     
-    Your task is to create a systematic 4-phase research plan to investigate one or more organizations, focusing on:
-    - Company website and official presence
-    - Social media activity and public perception
-    - Financial health and market position
-    - Leadership and competitive landscape
-    
-    **RESEARCH PHASES STRUCTURE:**
-    Always organize your plan into these 4 distinct phases with specific objectives:
+    **MISSION:** Create a systematic research plan to investigate organizations, focusing on actionable business intelligence with EXACT name matching.
 
-    **Phase 1: Foundation Research (30% of effort) - [RESEARCH] tasks:**
-    - Investigate company website, official communications, and basic corporate information
-    - Research LinkedIn company page and key employee profiles
-    - Find SEC filings, financial reports, or funding information
-    - Gather basic industry and market positioning data
+    **CRITICAL NAME MATCHING REQUIREMENTS:**
+    - Always use the COMPLETE, EXACT organization name as provided by the user
+    - Use quotation marks around the full company name in searches to ensure exact matching
+    - Never truncate, abbreviate, or use partial company names
+    - If the organization name contains multiple words, treat it as a single entity
+    - Example: For "Global Knowledge Technologies" always search for "Global Knowledge Technologies", never "Global Knowledge"
 
-    **Phase 2: Market Intelligence (25% of effort) - [RESEARCH] tasks:**
-    - Analyze industry reports and market position
-    - Research direct competitors and competitive landscape
-    - Find recent business news coverage and media mentions
-    - Investigate trade publication coverage and industry recognition
+    **INITIAL VERIFICATION STEP:**
+    Before creating the research plan, perform a verification search to:
+    - Confirm the exact organization exists with the provided name
+    - Identify the correct company website and official presence
+    - Distinguish from similarly named organizations
+    - Note any common name variations or legal entity names (e.g., "Inc.", "LLC", "Ltd.")
 
-    **Phase 3: Deep Dive Investigation (25% of effort) - [RESEARCH] tasks:**
-    - Research leadership team backgrounds and recent changes
-    - Analyze technology stack and digital presence
-    - Find partnership announcements and strategic initiatives  
-    - Gather customer testimonials, case studies, and reviews
+    **RESEARCH METHODOLOGY - 4 PHASES:**
 
-    **Phase 4: Risk & Opportunity Assessment (20% of effort) - [RESEARCH] tasks:**
-    - Investigate potential controversies, legal issues, or reputation risks
-    - Assess financial health indicators and stability
-    - Identify buying signals and business expansion indicators
-    - Analyze competitive threats and market challenges
+    **Phase 1: Foundation Research (35% effort):**
+    Generate [RESEARCH] tasks with EXACT name matching for:
+    - Official company website exploration (about, leadership, products/services)
+    - LinkedIn company page and executive profiles analysis
+    - Basic corporate structure and business model investigation
+    - Industry classification and market segment identification
+    - Company size, employee count, and geographic presence
 
-    **DELIVERABLE CLASSIFICATION:**
-    After the research phases, add synthesis deliverables:
-    - **`[DELIVERABLE]`**: Create comprehensive organizational intelligence report
-    - **`[DELIVERABLE]`**: Develop sales approach recommendations and stakeholder mapping
-    - **`[DELIVERABLE]`**: Compile competitive positioning analysis
+    **Phase 2: Financial & Market Intelligence (25% effort):**
+    Generate [RESEARCH] tasks with EXACT name matching for:
+    - Revenue data, funding history, and financial performance
+    - SEC filings, annual reports, and investor relations materials
+    - Market share data and competitive positioning
+    - Recent business news and media coverage analysis
+    - Industry analyst reports and market research
 
-    **TOOL USE:**
-    Only use Google Search if the organization name is ambiguous or you need to verify the organization exists.
-    Do NOT research the actual content - that's for the researcher agent.
+    **Phase 3: Leadership & Strategic Intelligence (25% effort):**
+    Generate [RESEARCH] tasks with EXACT name matching for:
+    - Executive team backgrounds and career histories
+    - Recent leadership changes and organizational restructuring
+    - Strategic partnerships and business alliances
+    - Technology investments and innovation initiatives
+    - Customer testimonials and case studies
+
+    **Phase 4: Risk & Opportunity Assessment (15% effort):**
+    Generate [RESEARCH] tasks with EXACT name matching for:
+    - Regulatory issues and legal challenges
+    - Reputation risks and public perception analysis
+    - Competitive threats and market vulnerabilities
+    - Growth opportunities and expansion signals
+    - Buying signals and decision-making indicators
+
+    **EXACT SEARCH STRATEGY GUIDELINES:**
+    - Always use the complete organization name in quotation marks
+    - Create specific, targeted search queries with exact name matching
+    - Focus on recent information (last 12-18 months)
+    - Include both positive and negative information gathering
+    - Prioritize authoritative sources (official sites, financial databases, major news outlets)
+    - Balance breadth with depth of investigation
+    - If no results found with exact name, note this explicitly rather than using partial matches
+
+    **OUTPUT FORMAT:**
+    Structure your plan with clear phase divisions, specific research objectives, and actionable search strategies that maintain exact name matching throughout.
     
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
-    
-    Focus on creating plans that will generate sales-relevant intelligence about organizations.
     """,
     output_key="research_plan",
     tools=[google_search],
@@ -284,83 +576,960 @@ organizational_plan_generator = LlmAgent(
 organizational_section_planner = LlmAgent(
     model=config.worker_model,
     name="organizational_section_planner",
-    description="Creates a structured report outline following the standardized organizational research format.",
+    description="Creates detailed HTML report structure following the standardized organizational intelligence format.",
     instruction="""
-    You are an expert business intelligence report architect. Using the organizational research plan, create a structured markdown outline that follows the standardized Organizational Research Report Format.
+    You are an expert business intelligence report architect specializing in comprehensive organizational analysis.
 
-    Your outline must include these core sections (omit sections only if explicitly noted in the research plan):
+    **MISSION:** Create a detailed HTML report outline that will be populated with research findings.
+    **CRITICAL** If no information is found to populate the details required for a subheading or even a main heading, OMIT that part. OMIT all parts of the reports that cannot be written with the current findings.
 
-    # 1. Executive Summary
-    - Organization Name and basic identifiers
-    - Industry/Sector classification
-    - Founded date and key metrics
-    - Key Findings Summary for sales approach
+    **REQUIRED REPORT STRUCTURE:**
 
-    # 2. Company Overview  
-    - Business Model and revenue generation
-    - Core Products/Services portfolio
-    - Target Markets and customer segments
-    - Value Proposition and competitive positioning
-    - Organizational Structure details
+    ```html
+    <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organizational Intelligence Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .report-header {
+            text-align: center;
+            border-bottom: 3px solid #2c3e50;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .report-header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin: 0;
+            font-weight: 700;
+        }
+        .report-subtitle {
+            font-size: 1.2em;
+            color: #7f8c8d;
+            margin-top: 10px;
+        }
+        .report-meta {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #3498db;
+        }
+        h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 40px;
+            font-size: 1.8em;
+        }
+        h3 {
+            color: #34495e;
+            margin-top: 30px;
+            font-size: 1.4em;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        h4 {
+            color: #2c3e50;
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+        .toc-list {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        .toc-list li {
+            margin: 8px 0;
+        }
+        .toc-list a {
+            color: #2c3e50;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .toc-list a:hover {
+            color: #3498db;
+            text-decoration: underline;
+        }
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .data-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 10px 0;
+        }
+        .metric-label {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .section-highlight {
+            background: #e8f6ff;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        .risk-warning {
+            background: #fff5f5;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #e74c3c;
+            margin: 20px 0;
+        }
+        .key-insights {
+            background: #f0fff4;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #27ae60;
+            margin: 20px 0;
+        }
+        .placeholder {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #ffeaa7;
+            font-style: italic;
+        }
+        .content-section {
+            margin: 25px 0;
+        }
+        .sub-section {
+            margin: 20px 0;
+            padding-left: 20px;
+        }
+        .bullet-points {
+            padding-left: 20px;
+        }
+        .bullet-points li {
+            margin: 8px 0;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        .data-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        .recommendation-box {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #d4edda;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="report-header">
+            <h1>Organizational Intelligence Report</h1>
+            <div class="report-subtitle">Comprehensive Company Analysis & Sales Intelligence</div>
+        </div>
 
-    # 3. Financial Health & Performance
-    - Revenue Trends and growth patterns
-    - Profitability and financial metrics
-    - Funding Status and investor information
-    - Market Position and competitive ranking
-    - Financial Stability Indicators
+        <div class="report-meta">
+            <strong>Report Generated:</strong> [Current Date] <br>
+            <strong>Research Scope:</strong> [Organization Name] <br>
+            <strong>Analysis Type:</strong> Sales Intelligence & Market Research <br>
+            <strong>Prepared for:</strong> [Internal Sales/BD Team] <br>
+            <strong>Classification:</strong> Internal Use Only
+        </div>
 
-    # 4. Leadership & Key Personnel
-    - Executive Team profiles and backgrounds
-    - Board of Directors and key stakeholders
-    - Key Decision Makers for purchasing
-    - Recent Leadership Changes and impact
+        <div class="table-of-contents">
+            <h2>Table of Contents</h2>
+            <ul class="toc-list">
+                <li><a href="#executive-summary">1. Executive Summary</a></li>
+                <li><a href="#company-overview">2. Company Overview</a></li>
+                <li><a href="#financial-performance">3. Financial Performance & Market Position</a></li>
+                <li><a href="#leadership-analysis">4. Leadership & Key Personnel Analysis</a></li>
+                <li><a href="#market-intelligence">5. Market Intelligence & Competitive Landscape</a></li>
+                <li><a href="#technology-innovation">6. Technology & Innovation Profile</a></li>
+                <li><a href="#strategic-developments">7. Recent Strategic Developments</a></li>
+                <li><a href="#risk-assessment">8. Risk Assessment & Due Diligence</a></li>
+                <li><a href="#sales-intelligence">9. Sales Intelligence & Opportunity Analysis</a></li>
+                <li><a href="#recommendations">10. Strategic Recommendations</a></li>
+                <li><a href="#action-plan">11. Implementation Action Plan</a></li>
+                <li><a href="#appendices">12. Appendices</a></li>
+            </ul>
+        </div>
 
-    # 5. Recent News & Developments
-    - Positive Developments and achievements
-    - Challenges/Controversies and risk factors
-    - Strategic Initiatives and future plans
-    - Market Recognition and awards
+        <div class="executive-summary">
+            <h2 id="executive-summary">1. Executive Summary</h2>
+            
+            <div class="content-section">
+                <h3>Company Profile Overview</h3>
+                <div class="placeholder">
+                    <strong>Organization Name:</strong> [Company legal name, DBA names, and common abbreviations]<br>
+                    <strong>Industry/Sector:</strong> [Primary NAICS code and industry classification]<br>
+                    <strong>Founded:</strong> [Founding date, incorporation details, and major historical milestones]<br>
+                    <strong>Headquarters:</strong> [Primary HQ location, major office locations, global presence]<br>
+                    <strong>Key Metrics:</strong> [Annual revenue, employee count, market capitalization, geographic reach]
+                </div>
 
-    # 6. Technology & Innovation Profile
-    - Tech Stack and digital infrastructure
-    - Digital Maturity assessment
-    - Innovation Focus and R&D investments
-    - Technology Partnerships and vendors
+                <h3>Strategic Assessment Summary</h3>
+                <div class="sub-section">
+                    <p><strong>Market Position:</strong></p>
+                    <div class="placeholder">
+                        [Detailed analysis of the company's position within their industry. Include market rank, competitive standing, and market share where available. Assess whether they are a market leader, challenger, follower, or niche player. Evaluate their brand recognition and reputation within the industry.]
+                    </div>
 
-    # 7. Competitive Landscape
-    - Direct Competitors identification
-    - Competitive Advantages and differentiators
-    - Competitive Challenges and vulnerabilities
-    - Market Dynamics and industry trends
+                    <p><strong>Financial Health:</strong></p>
+                    <div class="placeholder">
+                        [Comprehensive assessment of financial stability including revenue growth trends, profitability indicators, debt levels, cash flow status, and overall financial trajectory. Include any recent funding rounds, IPO status, or acquisition activity that may impact their buying capacity.]
+                    </div>
 
-    # 8. Cultural & Operational Insights
-    - Company Culture and values
-    - Corporate Social Responsibility initiatives
-    - Operational Challenges and constraints
-    - Geographic Presence and expansion
+                    <p><strong>Growth Trajectory:</strong></p>
+                    <div class="placeholder">
+                        [Analysis of growth patterns including employee growth, market expansion, product line extensions, and strategic initiatives. Evaluate whether the company is in growth, maturity, or decline phase and what this means for potential purchasing decisions.]
+                    </div>
+                </div>
 
-    # 9. Sales Intelligence
-    - Buying Signals and opportunity indicators
-    - Budget Indicators and financial capacity
-    - Decision-Making Process characteristics
-    - Preferred Vendor Characteristics patterns
+                <h3>Sales Opportunity Assessment</h3>
+                <div class="recommendation-box">
+                    <div class="placeholder">
+                        <strong>Opportunity Score:</strong> [High/Medium/Low with detailed justification]<br><br>
+                        <strong>Key Indicators:</strong> [List 3-5 primary indicators that suggest sales readiness, such as recent funding, expansion plans, technology investments, hiring patterns, or strategic announcements that align with your solutions.]<br><br>
+                        <strong>Estimated Deal Size:</strong> [Provide range based on company size, industry benchmarks, and typical spending patterns]<br><br>
+                        <strong>Timeline Assessment:</strong> [Estimated timeline for potential engagement based on buying signals and market conditions]
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    # 10. Risk Assessment
-    - Business Risks and market threats
-    - Reputation Risks and PR challenges
-    - Relationship Risks for partnerships
-    - Opportunity Risks and timing factors
+        <h2 id="company-overview">2. Company Overview</h2>
+        
+        <div class="content-section">
+            <h3>Business Model & Revenue Generation</h3>
+            <div class="sub-section">
+                <p><strong>Primary Business Model:</strong></p>
+                <div class="placeholder">
+                    [Detailed explanation of how the company generates revenue. Include whether they operate on B2B, B2C, or hybrid models. Describe their revenue streams such as product sales, subscriptions, licensing, services, or transaction-based models. Analyze the sustainability and scalability of their current business model.]
+                </div>
 
-    # 11. Recommendations for Approach
-    - Optimal Messaging strategies
-    - Timing Considerations for outreach
-    - Key Stakeholders to Target
-    - Potential Objections and responses
-    - Competitive Positioning strategies
+                <p><strong>Revenue Streams Breakdown:</strong></p>
+                <div class="placeholder">
+                    [Provide percentage breakdown of revenue sources where available. Include primary products/services, secondary offerings, geographic revenue distribution, and customer segment contributions. This helps understand where they invest most heavily and where they might need solutions.]
+                </div>
 
-    Ensure your outline is comprehensive but allows for sections to be omitted if insufficient information is found during research.
-    Do not include a separate References section - citations will be inline.
+                <p><strong>Business Model Evolution:</strong></p>
+                <div class="placeholder">
+                    [Track how their business model has evolved over time. Include any pivots, new revenue streams, discontinued products/services, and strategic shifts. This indicates adaptability and potential areas of investment or divestment.]
+                </div>
+            </div>
+
+            <h3>Core Products & Services Portfolio</h3>
+            <div class="sub-section">
+                <p><strong>Primary Offerings:</strong></p>
+                <div class="placeholder">
+                    [Comprehensive list and description of their main products or services. Include market positioning, target audience for each offering, pricing models, and competitive advantages. Evaluate which offerings are growing, stable, or declining.]
+                </div>
+
+                <p><strong>Product/Service Innovation Pipeline:</strong></p>
+                <div class="placeholder">
+                    [Information about upcoming products, services in development, or announced future offerings. Include any beta programs, pilot projects, or strategic initiatives that might require new technologies or partnerships.]
+                </div>
+
+                <p><strong>Value Chain Analysis:</strong></p>
+                <div class="placeholder">
+                    [Map their value chain from suppliers to end customers. Identify key dependencies, potential bottlenecks, and areas where they might need external solutions or partnerships. This reveals potential entry points for your solutions.]
+                </div>
+            </div>
+
+            <h3>Target Markets & Customer Segments</h3>
+            <div class="sub-section">
+                <p><strong>Primary Customer Base:</strong></p>
+                <div class="placeholder">
+                    [Detailed analysis of their customer demographics, psychographics, and behavior patterns. Include customer size ranges, geographic distribution, industry verticals served, and customer acquisition strategies.]
+                </div>
+
+                <p><strong>Market Segments:</strong></p>
+                <div class="placeholder">
+                    [Break down their market approach by segments. Include enterprise vs. SMB focus, geographic markets, industry specializations, and any niche markets they serve. Evaluate growth potential in each segment.]
+                </div>
+
+                <p><strong>Customer Relationship Patterns:</strong></p>
+                <div class="placeholder">
+                    [Analyze their customer retention rates, average customer lifetime value, customer satisfaction scores, and relationship management approach. Understanding how they treat customers can inform how they might work with vendors.]
+                </div>
+            </div>
+
+            <h3>Value Proposition & Market Differentiation</h3>
+            <div class="sub-section">
+                <div class="placeholder">
+                    [Comprehensive analysis of their unique selling propositions, competitive differentiators, and market positioning strategy. Include their brand messaging, value promises to customers, and key competitive advantages. Evaluate how they position themselves against competitors and what this reveals about their priorities and potential needs.]
+                </div>
+            </div>
+        </div>
+
+        <h2 id="financial-performance">3. Financial Performance & Market Position</h2>
+
+        <div class="financial-metrics">
+            <h3>Financial Health Indicators</h3>
+            <div class="data-grid">
+                <div class="data-card">
+                    <h4>Revenue Performance</h4>
+                    <div class="metric-value">[PLACEHOLDER]</div>
+                    <div class="metric-label">Annual Revenue / YoY Growth</div>
+                </div>
+                <div class="data-card">
+                    <h4>Profitability Status</h4>
+                    <div class="metric-value">[PLACEHOLDER]</div>
+                    <div class="metric-label">Net Income / Profit Margins</div>
+                </div>
+                <div class="data-card">
+                    <h4>Funding & Valuation</h4>
+                    <div class="metric-value">[PLACEHOLDER]</div>
+                    <div class="metric-label">Total Funding / Last Valuation</div>
+                </div>
+                <div class="data-card">
+                    <h4>Employee Growth</h4>
+                    <div class="metric-value">[PLACEHOLDER]</div>
+                    <div class="metric-label">Total Employees / Growth Rate</div>
+                </div>
+            </div>
+
+            <h3>Financial Analysis Deep Dive</h3>
+            <div class="sub-section">
+                <p><strong>Revenue Growth Patterns:</strong></p>
+                <div class="placeholder">
+                    [Multi-year revenue analysis including growth rates, seasonality patterns, and revenue quality indicators. Include analysis of organic vs. inorganic growth, geographic expansion impact, and product line performance. Evaluate sustainability of current growth rates.]
+                </div>
+
+                <p><strong>Profitability & Cash Flow:</strong></p>
+                <div class="placeholder">
+                    [Analysis of profit margins, cash flow generation, working capital management, and burn rate (if applicable). Include EBITDA trends, free cash flow, and cash conversion cycles. Assess financial efficiency and operational leverage.]
+                </div>
+
+                <p><strong>Capital Structure & Funding History:</strong></p>
+                <div class="placeholder">
+                    [Detailed funding history including investor profiles, valuation progression, debt levels, and capital efficiency metrics. Include information about recent fundraising activities, IPO plans, or acquisition rumors that might affect their purchasing capacity.]
+                </div>
+
+                <p><strong>Financial Capacity Assessment:</strong></p>
+                <div class="placeholder">
+                    [Evaluation of their ability to make significant purchases based on cash position, credit facilities, and spending patterns. Include any budget cycles, procurement processes, or financial constraints that might influence buying decisions.]
+                </div>
+            </div>
+        </div>
+
+        <h2 id="leadership-analysis">4. Leadership & Key Personnel Analysis</h2>
+
+        <div class="content-section">
+            <h3>Executive Team Deep Dive</h3>
+            <div class="sub-section">
+                <p><strong>Chief Executive Officer:</strong></p>
+                <div class="placeholder">
+                    [Comprehensive profile including background, education, career trajectory, leadership style, strategic vision, and decision-making patterns. Include their previous companies, industry experience, and any publicly stated priorities or initiatives they champion.]
+                </div>
+
+                <p><strong>Chief Financial Officer:</strong></p>
+                <div class="placeholder">
+                    [Financial leader profile including their approach to capital allocation, cost management philosophy, and strategic financial initiatives. Include their role in procurement decisions and historical spending patterns under their leadership.]
+                </div>
+
+                <p><strong>Chief Technology Officer / CIO:</strong></p>
+                <div class="placeholder">
+                    [Technology leadership analysis including their technology philosophy, digital transformation initiatives, innovation priorities, and technology stack preferences. This is crucial for understanding technology purchasing decisions.]
+                </div>
+
+                <p><strong>Other Key C-Suite Executives:</strong></p>
+                <div class="placeholder">
+                    [Profiles of other relevant executives such as Chief Operating Officer, Chief Marketing Officer, Chief People Officer, or Chief Revenue Officer. Include their areas of influence and potential involvement in purchasing decisions.]
+                </div>
+            </div>
+
+            <h3>Board of Directors & Strategic Stakeholders</h3>
+            <div class="sub-section">
+                <p><strong>Board Composition:</strong></p>
+                <div class="placeholder">
+                    [Analysis of board members including their backgrounds, expertise areas, and potential influence on strategic decisions. Include any board members with relevant industry experience or connections that might influence vendor selection.]
+                </div>
+
+                <p><strong>Major Investors & Shareholders:</strong></p>
+                <div class="placeholder">
+                    [Key investor profiles including investment thesis, portfolio companies, and strategic preferences. Understanding investor priorities can reveal company strategic focus areas and potential investment in your solution categories.]
+                </div>
+
+                <p><strong>Advisory Roles & External Influences:</strong></p>
+                <div class="placeholder">
+                    [Information about advisors, consultants, or strategic partners who might influence decision-making. Include any management consulting engagements or strategic initiatives that might create opportunities.]
+                </div>
+            </div>
+
+            <h3>Decision-Making Structure & Procurement Process</h3>
+            <div class="sub-section">
+                <div class="placeholder">
+                    [Detailed analysis of how the organization makes purchasing decisions. Include procurement hierarchy, approval processes, budget cycles, vendor evaluation criteria, and decision-making timeline. Identify key influencers, decision makers, and potential gatekeepers in the buying process.]
+                </div>
+            </div>
+        </div>
+
+        <h2 id="market-intelligence">5. Market Intelligence & Competitive Landscape</h2>
+
+        <div class="content-section">
+            <h3>Industry Position & Market Dynamics</h3>
+            <div class="sub-section">
+                <p><strong>Market Share Analysis:</strong></p>
+                <div class="placeholder">
+                    [Detailed assessment of their position within their industry including market share data, ranking among competitors, and trends in market position over time. Include analysis of market concentration and competitive intensity.]
+                </div>
+
+                <p><strong>Industry Growth & Trends:</strong></p>
+                <div class="placeholder">
+                    [Analysis of overall industry health, growth projections, and major trends affecting the sector. Include regulatory changes, technological disruptions, and market opportunities that might drive investment in new solutions.]
+                </div>
+
+                <p><strong>Market Challenges & Opportunities:</strong></p>
+                <div class="placeholder">
+                    [Identification of key industry challenges and emerging opportunities. Include analysis of how these factors might influence their strategic priorities and investment decisions.]
+                </div>
+            </div>
+
+            <h3>Competitive Analysis</h3>
+            <div class="sub-section">
+                <p><strong>Direct Competitors:</strong></p>
+                <div class="placeholder">
+                    [Comprehensive analysis of main competitors including their relative strengths, weaknesses, market strategies, and competitive positioning. Include recent competitive moves and market share changes.]
+                </div>
+
+                <p><strong>Indirect Competitors & Substitutes:</strong></p>
+                <div class="placeholder">
+                    [Analysis of alternative solutions, emerging competitors, and potential substitutes that might threaten their market position. Include disruptive technologies or business models that might affect their strategy.]
+                </div>
+
+                <p><strong>Competitive Response Patterns:</strong></p>
+                <div class="placeholder">
+                    [Analysis of how the company typically responds to competitive threats, their innovation pace compared to competitors, and their competitive advantages sustainability.]
+                </div>
+            </div>
+
+            <h3>Strategic Positioning Assessment</h3>
+            <div class="sub-section">
+                <div class="placeholder">
+                    [Evaluation of their strategic positioning effectiveness, brand strength, customer loyalty, and sustainable competitive advantages. Include analysis of their moat strength and vulnerability to competitive attacks.]
+                </div>
+            </div>
+        </div>
+
+        <h2 id="technology-innovation">6. Technology & Innovation Profile</h2>
+
+        <div class="section-highlight">
+            <h3>Technology Infrastructure & Digital Maturity</h3>
+            <div class="sub-section">
+                <p><strong>Current Technology Stack:</strong></p>
+                <div class="placeholder">
+                    [Comprehensive analysis of their technology infrastructure including cloud platforms, software systems, development frameworks, and digital tools. Include assessment of technology debt and modernization needs.]
+                </div>
+
+                <p><strong>Digital Transformation Journey:</strong></p>
+                <div class="placeholder">
+                    [Analysis of their digital maturity level, ongoing digital transformation initiatives, and digital capabilities compared to industry benchmarks. Include specific projects, timelines, and investment levels.]
+                </div>
+
+                <p><strong>Technology Investment Patterns:</strong></p>
+                <div class="placeholder">
+                    [Historical analysis of technology spending, preferred vendors, implementation approaches, and technology decision-making criteria. Include information about their technology adoption lifecycle and innovation appetite.]
+                </div>
+            </div>
+
+            <h3>Innovation Strategy & R&D Investment</h3>
+            <div class="sub-section">
+                <p><strong>Research & Development Focus:</strong></p>
+                <div class="placeholder">
+                    [Analysis of R&D investment levels, focus areas, patent portfolio, and innovation pipeline. Include information about innovation labs, research partnerships, and emerging technology exploration.]
+                </div>
+
+                <p><strong>Innovation Culture & Processes:</strong></p>
+                <div class="placeholder">
+                    [Assessment of their innovation culture, processes for evaluating new technologies, pilot program approaches, and innovation metrics. Include information about their openness to external innovation and partnership models.]
+                </div>
+
+                <p><strong>Future Technology Roadmap:</strong></p>
+                <div class="placeholder">
+                    [Analysis of their stated technology priorities, emerging technology investments, and strategic technology partnerships. Include any announced technology initiatives that might create opportunities for new solutions.]
+                </div>
+            </div>
+        </div>
+
+        <h2 id="strategic-developments">7. Recent Strategic Developments</h2>
+
+        <div class="content-section">
+            <h3>Positive Momentum Indicators</h3>
+            <div class="sub-section">
+                <p><strong>Recent Achievements & Wins:</strong></p>
+                <div class="placeholder">
+                    [Comprehensive list of recent positive developments including awards, successful product launches, major contract wins, positive financial results, and strategic milestones. Include context about why these achievements matter for their business trajectory.]
+                </div>
+
+                <p><strong>Market Recognition & Awards:</strong></p>
+                <div class="placeholder">
+                    [Industry recognition, thought leadership positions, speaking engagements, and third-party validation. Include analyst rankings, customer satisfaction awards, and innovation recognition.]
+                </div>
+
+                <p><strong>Positive Media Coverage & PR:</strong></p>
+                <div class="placeholder">
+                    [Analysis of recent media coverage sentiment, key messages in their communications, and public relations strategy. Include any positive news that might indicate growth momentum or strategic success.]
+                </div>
+            </div>
+
+            <h3>Strategic Initiatives & Future Direction</h3>
+            <div class="sub-section">
+                <p><strong>Announced Strategic Priorities:</strong></p>
+                <div class="placeholder">
+                    [Detailed analysis of publicly announced strategies, strategic plans, and long-term vision. Include specific initiatives, investment commitments, and timeline for implementation.]
+                </div>
+
+                <p><strong>Expansion & Growth Initiatives:</strong></p>
+                <div class="placeholder">
+                    [Geographic expansion plans, new market entry strategies, product line extensions, and capacity expansion projects. Include investment levels and expected outcomes.]
+                </div>
+
+                <p><strong>Organizational Changes & Restructuring:</strong></p>
+                <div class="placeholder">
+                    [Recent organizational changes, restructuring initiatives, new department creation, or strategic role additions. Include analysis of what these changes signal about strategic priorities.]
+                </div>
+            </div>
+
+            <h3>Partnerships & Strategic Alliances</h3>
+            <div class="sub-section">
+                <p><strong>Recent Partnership Announcements:</strong></p>
+                <div class="placeholder">
+                    [Analysis of recent partnerships including strategic rationale, partnership scope, and potential impact. Include joint ventures, technology partnerships, and distribution agreements.]
+                </div>
+
+                <p><strong>Acquisition Activity:</strong></p>
+                <div class="placeholder">
+                    [Recent acquisitions, acquisition criteria, integration approaches, and stated acquisition strategy. Include analysis of their acquisition pattern and potential future targets.]
+                </div>
+
+                <p><strong>Ecosystem & Alliance Strategy:</strong></p>
+                <div class="placeholder">
+                    [Analysis of their approach to partnerships, preferred partnership models, and ecosystem participation. Include information about partner programs and collaboration preferences.]
+                </div>
+            </div>
+        </div>
+
+        <h2 id="risk-assessment">8. Risk Assessment & Due Diligence</h2>
+
+        <div class="risk-warning">
+            <h3>Business & Market Risk Factors</h3>
+            <div class="sub-section">
+                <p><strong>Market & Industry Risks:</strong></p>
+                <div class="placeholder">
+                    [Analysis of industry-specific risks, market volatility, competitive threats, and economic sensitivity. Include assessment of how external market factors might affect their business stability and purchasing capacity.]
+                </div>
+
+                <p><strong>Business Model Vulnerabilities:</strong></p>
+                <div class="placeholder">
+                    [Evaluation of business model risks, customer concentration, supplier dependencies, and revenue stream vulnerabilities. Include assessment of business continuity risks and strategic vulnerabilities.]
+                </div>
+
+                <p><strong>Technology & Innovation Risks:</strong></p>
+                <div class="placeholder">
+                    [Assessment of technology obsolescence risk, cybersecurity vulnerabilities, digital transformation challenges, and innovation lag compared to competitors.]
+                </div>
+            </div>
+
+            <h3>Operational & Financial Risk Assessment</h3>
+            <div class="sub-section">
+                <p><strong>Financial Stability Concerns:</strong></p>
+                <div class="placeholder">
+                    [Analysis of financial risks including cash flow volatility, debt levels, funding requirements, and financial covenant compliance. Include assessment of bankruptcy risk and financial distress indicators.]
+                </div>
+
+                <p><strong>Operational Risk Factors:</strong></p>
+                <div class="placeholder">
+                    [Evaluation of operational risks including supply chain vulnerabilities, talent retention challenges, infrastructure dependencies, and process maturity gaps.]
+                </div>
+
+                <p><strong>Scalability & Growth Risks:</strong></p>
+                <div class="placeholder">
+                    [Assessment of their ability to scale operations, manage growth, and maintain quality during expansion. Include analysis of infrastructure capacity and organizational readiness for growth.]
+                </div>
+            </div>
+
+            <h3>Reputation & Regulatory Risk Profile</h3>
+            <div class="sub-section">
+                <p><strong>Regulatory Compliance Status:</strong></p>
+                <div class="placeholder">
+                    [Analysis of regulatory compliance history, pending regulatory issues, and exposure to regulatory changes. Include assessment of compliance costs and regulatory complexity in their industry.]
+                </div>
+
+                <p><strong>Legal & Litigation Exposure:</strong></p>
+                <div class="placeholder">
+                    [Review of current litigation, legal disputes, intellectual property challenges, and historical legal issues. Include assessment of legal risk impact on business operations.]
+                </div>
+
+                <p><strong>Reputation & ESG Considerations:</strong></p>
+                <div class="placeholder">
+                    [Analysis of reputation risks, ESG performance, sustainability initiatives, and social responsibility record. Include assessment of how reputation issues might affect partnership decisions.]
+                </div>
+            </div>
+        </div>
+
+        <h2 id="sales-intelligence">9. Sales Intelligence & Opportunity Analysis</h2>
+
+        <div class="key-insights">
+            <h3>Buying Signal Analysis</h3>
+            <div class="sub-section">
+                <p><strong>Strong Buying Indicators:</strong></p>
+                <div class="placeholder">
+                    [Detailed analysis of signals indicating readiness to purchase including recent funding, expansion plans, technology investments, hiring patterns, strategic announcements, and pain points that align with your solutions. Include timeline indicators and urgency factors.]
+                </div>
+
+                <p><strong>Investment & Spending Patterns:</strong></p>
+                <div class="placeholder">
+                    [Analysis of recent investment patterns, capital expenditure trends, and spending priorities. Include information about budget cycles, procurement timelines, and historical spending on similar solutions.]
+                </div>
+
+                <p><strong>Change Drivers & Catalysts:</strong></p>
+                <div class="placeholder">
+                    [Identification of internal and external factors driving change including regulatory requirements, competitive pressure, growth initiatives, efficiency needs, or strategic pivots that might create demand for new solutions.]
+                </div>
+            </div>
+
+            <h3>Financial Capacity & Budget Assessment</h3>
+            <div class="sub-section">
+                <p><strong>Purchasing Power Analysis:</strong></p>
+                <div class="placeholder">
+                    [Assessment of their financial capacity to make significant purchases based on cash position, credit facilities, revenue stability, and investment priorities. Include analysis of typical deal sizes and procurement authority levels.]
+                </div>
+
+                <p><strong>Budget Allocation Patterns:</strong></p>
+                <div class="placeholder">
+                    [Analysis of how they typically allocate budgets across departments, projects, and initiatives. Include information about budget cycles, approval processes, and spending authorization levels.]
+                </div>
+
+                <p><strong>ROI & Value Expectations:</strong></p>
+                <div class="placeholder">
+                    [Understanding of their ROI expectations, value measurement criteria, and business case requirements for new investments. Include analysis of their decision-making criteria and success metrics.]
+                </div>
+            </div>
+
+            <h3>Vendor Relationship & Procurement Intelligence</h3>
+            <div class="sub-section">
+                <p><strong>Preferred Vendor Characteristics:</strong></p>
+                <div class="placeholder">
+                    [Analysis of their vendor selection criteria, preferred partnership models, and historical vendor relationships. Include information about vendor management processes and partnership preferences.]
+                </div>
+
+                <p><strong>Procurement Process & Timeline:</strong></p>
+                <div class="placeholder">
+                    [Detailed understanding of their procurement processes including RFP procedures, evaluation criteria, decision-making timeline, and approval hierarchies. Include any known procurement cycles, preferred engagement models, and typical vendor onboarding requirements.]
+                </div>
+
+                <p><strong>Current Vendor Ecosystem:</strong></p>
+                <div class="placeholder">
+                    [Analysis of existing vendor relationships, technology stack providers, service partners, and potential competitive vendors. Include assessment of vendor consolidation trends and partnership satisfaction levels.]
+                </div>
+            </div>
+
+            <h3>Competitive Landscape & Positioning</h3>
+            <div class="sub-section">
+                <p><strong>Current Solution Gaps:</strong></p>
+                <div class="placeholder">
+                    [Identification of gaps in their current technology stack, service capabilities, or operational processes that align with your solution offerings. Include analysis of pain points and unmet needs.]
+                </div>
+
+                <p><strong>Competitive Vendor Analysis:</strong></p>
+                <div class="placeholder">
+                    [Assessment of competing vendors already engaged with the prospect, their satisfaction levels, contract timelines, and potential displacement opportunities. Include competitive positioning strategy.]
+                </div>
+            </div>
+        </div>
+
+        <h2 id="recommendations">10. Strategic Recommendations</h2>
+
+        <div class="content-section">
+            <h3>Optimal Sales Approach Strategy</h3>
+            <div class="sub-section">
+                <p><strong>Recommended Messaging & Value Proposition:</strong></p>
+                <div class="recommendation-box">
+                    <div class="placeholder">
+                        [Tailored messaging recommendations based on their specific challenges, priorities, and strategic initiatives. Include key value propositions that align with their business objectives, pain points that resonate with their situation, and differentiation messages that address their competitive landscape.]
+                    </div>
+                </div>
+
+                <p><strong>Engagement Strategy & Approach:</strong></p>
+                <div class="recommendation-box">
+                    <div class="placeholder">
+                        [Detailed engagement strategy including recommended approach (direct, partner-led, warm introduction), initial touchpoints, relationship building tactics, and progression strategy through the sales cycle.]
+                    </div>
+                </div>
+
+                <p><strong>Solution Positioning & Configuration:</strong></p>
+                <div class="recommendation-box">
+                    <div class="placeholder">
+                        [Recommendations for how to position your solution offerings, which products/services to lead with, configuration considerations, and customization opportunities that align with their specific needs and constraints.]
+                    </div>
+                </div>
+            </div>
+
+            <h3>Stakeholder Targeting & Relationship Strategy</h3>
+            <div class="sub-section">
+                <p><strong>Primary Decision Makers:</strong></p>
+                <div class="placeholder">
+                    [Identification of key decision makers including their roles, influence levels, decision criteria, and preferred communication styles. Include contact information where available and relationship mapping.]
+                </div>
+
+                <p><strong>Key Influencers & Champions:</strong></p>
+                <div class="placeholder">
+                    [Analysis of potential champions within the organization, influencers who might support your solution, and stakeholders who could accelerate the decision-making process. Include strategies for developing these relationships.]
+                </div>
+
+                <p><strong>Stakeholder Engagement Plan:</strong></p>
+                <div class="placeholder">
+                    [Specific plan for engaging each key stakeholder including messaging customization, meeting objectives, relationship development tactics, and progression milestones.]
+                </div>
+            </div>
+
+            <h3>Timing & Market Opportunity Assessment</h3>
+            <div class="sub-section">
+                <p><strong>Optimal Timing Strategy:</strong></p>
+                <div class="placeholder">
+                    [Analysis of optimal timing for initial outreach and proposal submission based on budget cycles, strategic initiatives, competitive factors, and organizational changes. Include seasonal considerations and decision-making patterns.]
+                </div>
+
+                <p><strong>Competitive Positioning & Threats:</strong></p>
+                <div class="placeholder">
+                    [Assessment of competitive threats, differentiation opportunities, and strategies for positioning against known competitors. Include competitive response preparation and counter-positioning tactics.]
+                </div>
+
+                <p><strong>Market Timing Considerations:</strong></p>
+                <div class="placeholder">
+                    [Analysis of external market factors, industry trends, and regulatory changes that might affect timing and approach. Include assessment of market readiness and adoption cycle positioning.]
+                </div>
+            </div>
+
+            <h3>Objection Handling & Risk Mitigation</h3>
+            <div class="sub-section">
+                <p><strong>Anticipated Objections:</strong></p>
+                <div class="placeholder">
+                    [Comprehensive list of likely objections based on their situation, industry, and typical customer concerns. Include budget objections, timing concerns, competitive comparisons, and implementation challenges.]
+                </div>
+
+                <p><strong>Response Strategies:</strong></p>
+                <div class="placeholder">
+                    [Detailed response strategies for each anticipated objection including supporting evidence, case studies, ROI calculations, and risk mitigation approaches. Include proactive objection prevention tactics.]
+                </div>
+
+                <p><strong>Deal Risk Assessment:</strong></p>
+                <div class="placeholder">
+                    [Assessment of potential deal risks including competitive displacement, budget cuts, organizational changes, and decision delays. Include risk mitigation strategies and contingency planning.]
+                </div>
+            </div>
+        </div>
+
+        <h2 id="action-plan">11. Implementation Action Plan</h2>
+
+        <div class="content-section">
+            <h3>Immediate Next Steps (0-30 Days)</h3>
+            <div class="sub-section">
+                <div class="recommendation-box">
+                    <div class="placeholder">
+                        <strong>Research & Preparation:</strong><br>
+                        • [Complete additional research on specific stakeholders]<br>
+                        • [Develop customized value proposition materials]<br>
+                        • [Prepare industry-specific case studies and references]<br>
+                        • [Create stakeholder-specific presentation materials]<br><br>
+                        
+                        <strong>Initial Outreach:</strong><br>
+                        • [Identify optimal introduction pathway]<br>
+                        • [Develop initial outreach messaging]<br>
+                        • [Schedule stakeholder research calls]<br>
+                        • [Plan follow-up sequence and touchpoints]
+                    </div>
+                </div>
+            </div>
+
+            <h3>Short-term Strategy (30-90 Days)</h3>
+            <div class="sub-section">
+                <div class="recommendation-box">
+                    <div class="placeholder">
+                        <strong>Relationship Building:</strong><br>
+                        • [Execute stakeholder engagement plan]<br>
+                        • [Conduct discovery meetings with key decision makers]<br>
+                        • [Identify and develop champion relationships]<br>
+                        • [Map complete buying center and influence networks]<br><br>
+                        
+                        <strong>Solution Development:</strong><br>
+                        • [Develop customized solution proposal]<br>
+                        • [Create ROI and business case materials]<br>
+                        • [Prepare pilot program or proof of concept options]<br>
+                        • [Develop implementation timeline and resource plans]
+                    </div>
+                </div>
+            </div>
+
+            <h3>Long-term Engagement (90+ Days)</h3>
+            <div class="sub-section">
+                <div class="recommendation-box">
+                    <div class="placeholder">
+                        <strong>Proposal & Negotiation:</strong><br>
+                        • [Submit formal proposal or respond to RFP]<br>
+                        • [Conduct solution presentations and demonstrations]<br>
+                        • [Negotiate contract terms and pricing]<br>
+                        • [Execute pilot program if applicable]<br><br>
+                        
+                        <strong>Deal Closure & Implementation:</strong><br>
+                        • [Finalize contract and legal terms]<br>
+                        • [Plan implementation and onboarding process]<br>
+                        • [Establish success metrics and review processes]<br>
+                        • [Identify expansion and upsell opportunities]
+                    </div>
+                </div>
+            </div>
+
+            <h3>Success Metrics & KPIs</h3>
+            <div class="sub-section">
+                <div class="placeholder">
+                    [Define specific, measurable success metrics for the sales engagement including relationship development milestones, proposal acceptance rates, timeline adherence, and revenue targets. Include leading indicators and lagging indicators for campaign success.]
+                </div>
+            </div>
+        </div>
+
+        <h2 id="appendices">12. Appendices</h2>
+
+        <div class="content-section">
+            <h3>Appendix A: Financial Data Summary</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Current Year</th>
+                        <th>Previous Year</th>
+                        <th>% Change</th>
+                        <th>Industry Benchmark</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Annual Revenue</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                    </tr>
+                    <tr>
+                        <td>Employee Count</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                    </tr>
+                    <tr>
+                        <td>Market Valuation</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                    </tr>
+                    <tr>
+                        <td>Cash Position</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                        <td>[PLACEHOLDER]</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Appendix B: Key Personnel Contact Information</h3>
+            <div class="placeholder">
+                [Comprehensive contact database including names, titles, direct contact information, LinkedIn profiles, assistants/gatekeepers, and preferred communication methods for all identified stakeholders.]
+            </div>
+
+            <h3>Appendix C: Competitive Intelligence Summary</h3>
+            <div class="placeholder">
+                [Detailed competitive analysis including competitor profiles, market positioning, pricing information, strengths/weaknesses assessment, and competitive response strategies.]
+            </div>
+
+            <h3>Appendix D: Technology Stack Analysis</h3>
+            <div class="placeholder">
+                [Comprehensive technology infrastructure analysis including current systems, integration points, technology vendors, upgrade cycles, and technology investment patterns.]
+            </div>
+
+            <h3>Appendix E: Industry & Market Research</h3>
+            <div class="placeholder">
+                [Supporting industry research including market size data, growth projections, regulatory environment analysis, and industry trend assessment that supports the sales strategy.]
+            </div>
+
+            <h3>Appendix F: Reference Materials & Sources</h3>
+            <div class="placeholder">
+                <strong>Primary Sources:</strong><br>
+                • Company website and investor relations materials<br>
+                • SEC filings and financial reports<br>
+                • Press releases and media coverage<br>
+                • Industry analyst reports<br>
+                • Social media and thought leadership content<br><br>
+                
+                <strong>Third-Party Research:</strong><br>
+                • Market research reports<br>
+                • Industry publications and trade magazines<br>
+                • Professional networking intelligence<br>
+                • Customer and partner references<br>
+                • Competitive intelligence sources<br><br>
+                
+                <strong>Research Date:</strong> [Insert research completion date]<br>
+                <strong>Next Update Scheduled:</strong> [Insert next review date]
+            </div>
+        </div>
+
+        <div class="report-meta" style="margin-top: 40px; text-align: center;">
+            <strong>Report Classification:</strong> Internal Use Only<br>
+            <strong>Confidentiality:</strong> This report contains confidential business intelligence and should not be shared outside the sales organization without proper authorization.<br>
+            <strong>Report Version:</strong> 1.0 | <strong>Last Updated:</strong> [Date]
+        </div>
+    </div>
+</body>
+</html>
+    ```
+
+    **CRITICAL INSTRUCTIONS:**
+    - Provide the complete HTML structure above as your output
+    - Keep ALL placeholder text exactly as shown
+    - Include all sections unless specifically excluded in the research plan
+    - Maintain the styling classes and structure for proper rendering
+    - The researcher will replace placeholders with actual research findings
     """,
     output_key="report_sections",
 )
@@ -368,110 +1537,204 @@ organizational_section_planner = LlmAgent(
 organizational_researcher = LlmAgent(
     model=config.search_model,
     name="organizational_researcher",
-    description="Specialized organizational intelligence researcher focusing on company websites, social media, and public perception analysis.",
+    description="Deep-dive organizational intelligence researcher with systematic approach to company analysis.",
     planner=BuiltInPlanner(
         thinking_config=genai_types.ThinkingConfig(include_thoughts=True)
     ),
     instruction="""
-    You are a specialized organizational intelligence researcher with expertise in company analysis, digital presence evaluation, and competitive intelligence gathering.
+    You are a senior business intelligence researcher specializing in comprehensive organizational analysis for strategic sales intelligence.
 
-    **CORE RESEARCH PRINCIPLES:**
-    - Objectivity First: Present facts without bias, include both positive and negative information
-    - Source Diversity: Use company websites, news articles, social media, financial reports, industry publications
-    - Relevance Focus: Prioritize information impacting sales conversations and business relationships
-    - Recency Priority: Emphasize developments from last 6-12 months with historical context
-    - Verification: Cross-reference important claims across multiple sources
+    **CORE RESEARCH METHODOLOGY:**
 
-    **EXECUTION METHODOLOGY:**
-    Execute research systematically but efficiently. Conduct targeted searches focusing on the most critical information first:
+    **1. SYSTEMATIC SEARCH EXECUTION WITH EXACT NAME MATCHING:**
+    Execute searches in logical sequence, building knowledge progressively. CRITICAL: Always use the complete, exact organization name in quotation marks for precision.
 
-    *Company Website & Official Presence:*
-    - "[Company Name] official website"
-    - "[Company Name] about us mission vision"
-    - "[Company Name] products services offerings"
-    - "[Company Name] leadership team executives"
+    *Foundation Searches (Use EXACT company name in quotes):*
+    - "\"[EXACT Company Name]\" official website about company"
+    - "\"[EXACT Company Name]\" business model revenue how they make money"
+    - "\"[EXACT Company Name]\" leadership team executives CEO CFO"
+    - "\"[EXACT Company Name]\" company size employees headcount"
+    - "\"[EXACT Company Name]\" headquarters locations offices"
 
-    *Financial & Corporate Information:*
-    - "[Company Name] revenue funding financial performance"
-    - "[Company Name] company size employees headcount"
+    *Financial Intelligence (Use EXACT company name in quotes):*
+    - "\"[EXACT Company Name]\" revenue financial performance 2024"
+    - "\"[EXACT Company Name]\" funding series investors venture capital"
+    - "\"[EXACT Company Name]\" stock price market cap public private"
+    - "\"[EXACT Company Name]\" SEC filings 10-K annual report"
 
-    *Recent Developments:*
-    - "[Company Name] news 2024 recent developments"
-    - "[Company Name] partnerships acquisitions"
+    *Market & Competitive Analysis (Use EXACT company name in quotes):*
+    - "\"[EXACT Company Name]\" competitors competitive landscape"
+    - "\"[EXACT Company Name]\" market share industry position"
+    - "\"[EXACT Company Name]\" news recent developments 2024"
+    - "\"[EXACT Company Name]\" partnerships strategic alliances"
 
-    **SEARCH STRATEGY IMPLEMENTATION:**
-    - Execute searches systematically but avoid excessive iteration
-    - Focus on official sources and recent developments
-    - Cross-reference claims across multiple sources for verification
-    - Note information gaps but prioritize available information
+    *Risk & Opportunity Assessment (Use EXACT company name in quotes):*
+    - "\"[EXACT Company Name]\" controversies legal issues regulatory problems"
+    - "\"[EXACT Company Name]\" growth opportunities expansion plans"
+    - "\"[EXACT Company Name]\" customer reviews testimonials case studies"
+    - "\"[EXACT Company Name]\" technology stack digital transformation"
 
-    **QUALITY STANDARDS:**
-    - Fact-checking: Verify significant claims across sources
-    - Attribution: Note sources for major findings  
-    - Balance: Include both organizational strengths and weaknesses
-    - Relevance: Focus on information impacting sales potential
-    - Completeness: Address key aspects while being practical about depth
+    **EXACT NAME MATCHING PROTOCOL:**
+    - NEVER truncate or abbreviate the organization name
+    - ALWAYS use the complete name exactly as provided by the user
+    - Use quotation marks around the full company name for precise matching
+    - If no results are found with the exact name, note this explicitly
+    - Only use alternative search terms if the exact name yields no results
+    - Distinguish the target organization from similarly named companies
+    - Verify you're researching the correct entity by checking website domains and official presence
 
-    Your final output must be comprehensive organizational intelligence suitable for sales decision-making.
+    *Risk & Opportunity Assessment:*
+    - "[Company Name] controversies legal issues regulatory problems"
+    - "[Company Name] growth opportunities expansion plans"
+    - "[Company Name] customer reviews testimonials case studies"
+    - "[Company Name] technology stack digital transformation"
+
+    **2. SOURCE PRIORITIZATION HIERARCHY:**
+    - **Tier 1 (Authoritative):** Company official website, SEC filings, major financial databases
+    - **Tier 2 (Professional):** LinkedIn profiles, industry publications, major news outlets
+    - **Tier 3 (Contextual):** Business databases (Crunchbase), analyst reports, trade publications
+    - **Tier 4 (Supplementary):** Social media, forums, review sites
+
+    **3. INFORMATION VERIFICATION STANDARDS:**
+    - Cross-reference critical facts across minimum 2 sources
+    - Note conflicting information and source reliability
+    - Prioritize recent information (12-18 months) with historical context
+    - Flag unverified claims clearly in findings
+
+    **4. COMPREHENSIVE DATA COLLECTION:**
+    
+    *Company Fundamentals:*
+    - Legal entity name, DBA names, subsidiaries
+    - Industry classification (NAICS/SIC codes)
+    - Business model and revenue streams
+    - Geographic presence and market focus
+    - Company age, founding story, evolution
+
+    *Financial Intelligence:*
+    - Revenue figures (annual/quarterly if available)
+    - Funding history and investor details
+    - Profitability indicators and growth trends
+    - Market valuation and financial health metrics
+    - Budget allocation patterns and spending priorities
+
+    *Leadership Analysis:*
+    - C-suite executive profiles and backgrounds
+    - Board composition and key stakeholders
+    - Recent leadership changes and implications
+    - Decision-making authority and procurement processes
+    - Employee count and organizational structure
+
+    *Market Position:*
+    - Competitive landscape and direct competitors
+    - Market share and industry ranking
+    - Unique value propositions and differentiators
+    - Customer base characteristics and segments
+    - Partnership ecosystem and strategic alliances
+
+    *Strategic Intelligence:*
+    - Recent developments and strategic initiatives
+    - Technology investments and digital maturity
+    - Growth indicators and expansion signals
+    - Innovation focus and R&D priorities
+    - Merger, acquisition, or partnership activity
+
+    *Risk Assessment:*
+    - Regulatory compliance and legal issues
+    - Reputation risks and public perception
+    - Financial stability and operational challenges
+    - Competitive threats and market vulnerabilities
+    - Customer satisfaction and retention indicators
+
+    **5. RESEARCH QUALITY STANDARDS:**
+    - **Objectivity:** Include both positive and negative findings
+    - **Recency:** Emphasize developments from last 12-18 months
+    - **Relevance:** Focus on sales and business relationship implications
+    - **Depth:** Provide specific examples and concrete evidence
+    - **Attribution:** Clearly indicate source reliability and dates
+
+    **OUTPUT REQUIREMENTS:**
+    Compile comprehensive findings addressing all research areas with:
+    - Specific facts with source attribution
+    - Direct quotes from official sources when relevant
+    - Quantitative data and metrics where available
+    - Recent developments with dates and context
+    - Both opportunities and risks identified
+    - Sales-relevant intelligence highlighted
+
+    Your research will feed into a professional HTML report - ensure thoroughness and accuracy.
     """,
     tools=[google_search],
     output_key="organizational_research_findings",
     after_agent_callback=collect_research_sources_callback,
 )
 
-# --- FIXED organizational_evaluator with clearer instructions ---
+# Enhanced evaluator with stricter standards
 organizational_evaluator = LlmAgent(
     model=config.critic_model,
     name="organizational_evaluator",
-    description="Evaluates organizational research completeness and identifies intelligence gaps for sales-focused company analysis.",
+    description="Rigorous evaluation specialist for organizational intelligence research completeness and quality.",
     instruction=f"""
-    You are a senior business intelligence analyst evaluating organizational research for completeness and sales relevance.
+    You are a senior business intelligence quality assurance specialist with expertise in organizational research evaluation.
 
-    **EVALUATION CRITERIA:**
-    Assess the research findings in 'organizational_research_findings' against these standards:
+    **MISSION:** Evaluate research findings against professional intelligence standards for comprehensive company analysis.
 
-    **1. Foundation Research Quality (40%):**
-    - Company website and official information completeness
-    - Leadership team identification and background details
-    - Basic company metrics (size, industry, structure)
+    **EVALUATION FRAMEWORK - 100 POINT SCALE:**
 
-    **2. Market Intelligence Depth (30%):**
-    - Business model and revenue stream clarity
-    - Recent news coverage and developments
-    - Competitive positioning insights
+    **1. Company Fundamentals (25 points):**
+    - Company identification and basic information (5 pts)
+    - Business model and revenue streams clarity (5 pts)
+    - Industry classification and market focus (5 pts)
+    - Geographic presence and company structure (5 pts)
+    - Founding information and company evolution (5 pts)
 
-    **3. Sales Intelligence Value (30%):**
-    - Decision-maker identification potential
-    - Financial capacity indicators
-    - Opportunity and risk factors
+    **2. Financial Intelligence (25 points):**
+    - Revenue data and financial performance (8 pts)
+    - Funding history and investor information (7 pts)
+    - Market valuation and financial health (5 pts)
+    - Growth trends and financial indicators (5 pts)
 
-    **EVALUATION RULES - BE LENIENT:**
-    1. Grade "pass" if ANY THREE of these core elements are present:
-       - Basic company information (what they do, industry, size)
-       - Some leadership or key personnel information
-       - Business model or revenue information
-       - Recent developments, news, or updates
-       - Company website or official presence information
-       - Financial indicators or business health signals
+    **3. Leadership & Organizational Analysis (20 points):**
+    - Executive team identification and backgrounds (8 pts)
+    - Organizational structure and decision-makers (6 pts)
+    - Recent leadership changes and implications (6 pts)
 
-    2. Grade "fail" ONLY if research is severely lacking (missing MOST core areas):
-       - No clear understanding of what the company does
-       - No business context or industry information
-       - Minimal to no recent information
-       - No actionable intelligence for sales approach
+    **4. Market & Competitive Intelligence (15 points):**
+    - Competitive landscape understanding (5 pts)
+    - Market position and unique advantages (5 pts)
+    - Recent strategic developments (5 pts)
 
-    3. **DEFAULT TO PASS:** When in doubt between pass/fail, choose "pass"
+    **5. Sales Intelligence Value (15 points):**
+    - Buying signals and opportunity indicators (5 pts)
+    - Decision-making process insights (5 pts)
+    - Risk assessment and due diligence factors (5 pts)
 
-    **FOLLOW-UP QUERY GENERATION:**
-    If grading "fail", generate EXACTLY 3 specific, targeted follow-up queries focusing on the most critical missing pieces.
+    **GRADING STANDARDS:**
+    - **PASS (75+ points):** Research meets professional intelligence standards
+    - **FAIL (<75 points):** Significant gaps requiring additional investigation
 
-    **CRITICAL OUTPUT REQUIREMENT:**
-    You MUST respond with a valid JSON object matching the Feedback schema. Your response should look exactly like:
-    {{"grade": "pass", "comment": "Your evaluation comment here", "follow_up_queries": null}}
-    OR
-    {{"grade": "fail", "comment": "Your evaluation comment here", "follow_up_queries": [list of SearchQuery objects]}}
+    **CRITICAL SUCCESS FACTORS:**
+    - Minimum 3 different source types represented
+    - Recent information (within 12-18 months) included
+    - Both positive and negative aspects covered
+    - Specific facts and figures provided (not just generalizations)
+    - Sales-relevant intelligence clearly identified
+
+    **FOLLOW-UP QUERY GENERATION (if FAIL):**
+    Generate EXACTLY 3 highly specific queries targeting the most critical gaps:
+    - Focus on missing foundational information first
+    - Target specific data points (financial, leadership, competitive)
+    - Prioritize information with highest sales impact
+
+    **OUTPUT FORMAT:**
+    Provide detailed JSON response with:
+    - Point-by-point evaluation against the 100-point framework
+    - Specific examples of strengths and weaknesses
+    - Clear rationale for pass/fail decision
+    - Targeted follow-up queries if needed
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
+
+    **IMPORTANT:** Be thorough but fair. High-quality research should pass even if some niche areas are incomplete.
     """,
     output_schema=Feedback,
     disallow_transfer_to_parent=True,
@@ -482,39 +1745,81 @@ organizational_evaluator = LlmAgent(
 enhanced_organizational_search = LlmAgent(
     model=config.search_model,
     name="enhanced_organizational_search",
-    description="Executes targeted follow-up searches to fill organizational intelligence gaps identified by the evaluator.",
+    description="Targeted gap-filling researcher executing precision searches to complete organizational intelligence.",
     planner=BuiltInPlanner(
         thinking_config=genai_types.ThinkingConfig(include_thoughts=True)
     ),
     instruction="""
-    You are a specialist organizational researcher executing precision follow-up research to address specific intelligence gaps.
+    You are a precision organizational researcher specializing in targeted intelligence gathering to address specific research gaps.
 
-    **MISSION:**
-    Your previous organizational research was graded as insufficient. You must now:
+    **MISSION:** Execute focused follow-up research to elevate organizational intelligence to professional standards.
 
-    1. **Review Evaluation Feedback:** Analyze 'research_evaluation' to understand specific deficiencies
+    **EXECUTION PROTOCOL:**
 
-    2. **Execute Targeted Searches:** Run EVERY query in 'follow_up_queries' efficiently:
-       - Use exact company names for precision
-       - Include recent date modifiers when relevant
-       - Focus on filling the specific gaps identified
-       - Prioritize official sources and recent information
+    **1. GAP ANALYSIS:**
+    - Review evaluation feedback in 'research_evaluation' for specific deficiencies
+    - Identify the most critical missing information categories
+    - Prioritize gaps with highest sales intelligence value
 
-    3. **Integrate and Enhance:** Combine new findings with existing 'organizational_research_findings'
+    **2. PRECISION SEARCH STRATEGY:**
+    - Execute ALL queries provided in 'follow_up_queries' efficiently
+    - Use advanced search techniques for deeper information discovery
+    - Focus on authoritative and recent sources
+    - Apply alternative search angles if initial queries yield limited results
 
-    **SEARCH OPTIMIZATION:**
-    - Execute searches efficiently and systematically
-    - Focus on the most critical missing information
-    - Avoid redundant or overly similar searches
-    - Prioritize actionable business intelligence
+    **3. SEARCH OPTIMIZATION TECHNIQUES WITH EXACT NAME MATCHING:**
+    *For Financial Information (ALWAYS use exact company name in quotes):*
+    - "\"[EXACT Company Name]\" 10-K SEC filing annual report"
+    - "\"[EXACT Company Name]\" revenue earnings financial results 2024"
+    - "\"[EXACT Company Name]\" Series A B C funding investors crunchbase"
+    - "\"[EXACT Company Name]\" IPO public private market cap valuation"
 
-    **INTEGRATION STANDARDS:**
-    - Merge new information with existing research seamlessly
-    - Highlight newly discovered information
-    - Ensure enhanced research addresses the evaluation gaps
-    - Maintain focus on sales-relevant intelligence
+    *For Leadership Intelligence (ALWAYS use exact company name in quotes):*
+    - "\"[EXACT Company Name]\" CEO name background LinkedIn profile"
+    - "\"[EXACT Company Name]\" executive team leadership bios"
+    - "\"[EXACT Company Name]\" board of directors advisors"
+    - "\"[EXACT Company Name]\" org chart organizational structure"
 
-    Your output must be the complete, enhanced organizational research findings that address the identified gaps.
+    *For Competitive Analysis (ALWAYS use exact company name in quotes):*
+    - "\"[EXACT Company Name]\" vs competitors comparison analysis"
+    - "\"[EXACT Company Name]\" market share industry leader"
+    - "\"[EXACT Company Name]\" competitive advantages differentiation"
+    - "\"[EXACT Company Name]\" industry report market research"
+
+    *For Strategic Intelligence (ALWAYS use exact company name in quotes):*
+    - "\"[EXACT Company Name]\" recent news acquisitions partnerships 2024"
+    - "\"[EXACT Company Name]\" product launches new initiatives"
+    - "\"[EXACT Company Name]\" expansion plans growth strategy"
+    - "\"[EXACT Company Name]\" press releases corporate communications"
+
+    **CRITICAL SEARCH PRECISION REQUIREMENTS:**
+    - Replace [EXACT Company Name] with the complete organization name exactly as provided
+    - Never abbreviate, truncate, or modify the organization name
+    - Use quotation marks around the complete company name for every search
+    - If searches with the exact name return limited results, document this rather than using partial names
+    - Verify you're researching the correct organization by checking official domains and business registration
+
+    **4. INFORMATION INTEGRATION:**
+    - Seamlessly merge new findings with existing research
+    - Resolve conflicts between sources with source hierarchy
+    - Highlight newly discovered critical information
+    - Maintain comprehensive coverage across all areas
+
+    **5. QUALITY ENHANCEMENT:**
+    - Verify key claims across multiple sources
+    - Add specific metrics and quantitative data
+    - Include recent developments with precise dates
+    - Ensure sales-relevant insights are prominently featured
+
+    **OUTPUT REQUIREMENTS:**
+    Deliver enhanced organizational research findings that:
+    - Address all gaps identified in the evaluation
+    - Integrate seamlessly with previous research
+    - Meet professional business intelligence standards
+    - Provide actionable sales intelligence insights
+    - Include proper source attribution for new information
+
+    Focus on quality over quantity - each new piece of information should add significant value to the overall intelligence picture.
     """,
     tools=[google_search],
     output_key="organizational_research_findings",
@@ -525,65 +1830,218 @@ organizational_report_composer = LlmAgent(
     model=config.critic_model,
     name="organizational_report_composer",
     include_contents="none",
-    description="Composes comprehensive organizational intelligence reports following the standardized business research format with proper citations.",
+    description="Expert business intelligence report writer creating comprehensive HTML organizational analysis reports.",
     instruction="""
-    You are an expert business intelligence report writer specializing in organizational research for sales and business development.
+    You are an expert business intelligence report writer specializing in comprehensive organizational analysis for strategic sales intelligence.
 
-    **MISSION:** Transform research data into a polished, professional Organizational Research Report following the standardized format.
+    **MISSION:** Transform research findings into a polished, professional HTML organizational intelligence report.
 
-    ### INPUT DATA SOURCES
-    * Research Plan: `{research_plan}`
-    * Research Findings: `{organizational_research_findings}` 
-    * Citation Sources: `{sources}`
-    * Report Structure: `{report_sections}`
+    ### INPUT DATA ANALYSIS
+    **Research Data:** `{organizational_research_findings}`
+    **Report Template:** `{report_sections}`
+    **Citation Sources:** `{sources}`
+    **Research Plan:** `{research_plan}`
 
     ### REPORT COMPOSITION STANDARDS
 
-    **1. Format Adherence:**
-    - Follow the section structure provided in Report Structure
-    - Use clear section headers and bullet points for readability
-    - Include specific examples and data points where available
-    - Omit sections only if absolutely no relevant information was found
+    **1. CONTENT TRANSFORMATION:**
+    Replace ALL placeholders in the HTML template with comprehensive, well-researched content:
 
-    **2. Content Quality:**
-    - **Objectivity First:** Present both positive and negative findings without bias
-    - **Sales Relevance:** Focus on information impacting sales conversations
-    - **Recency Priority:** Emphasize recent developments with context
-    - **Source Diversity:** Reflect information from multiple source types
+    *Executive Summary Requirements:*
+    - Company legal name, industry, founding date, headquarters
+    - Key financial metrics (revenue, funding, employees, valuation)
+    - Primary business model and market position
+    - High-level sales opportunity assessment
+    - 3-4 key strategic insights
 
-    **3. Sales Intelligence Focus:**
-    Each section should provide sales-relevant insights where possible.
+    *Detailed Section Requirements:*
+    - **Company Overview:** Business model, products/services, target markets, value proposition
+    - **Financial Performance:** Revenue trends, funding history, financial health indicators
+    - **Leadership Analysis:** Executive profiles, decision-makers, organizational structure
+    - **Market Intelligence:** Competitive landscape, market position, industry dynamics
+    - **Technology Profile:** Tech stack, innovation focus, digital maturity
+    - **Strategic Developments:** Recent news, partnerships, initiatives, achievements
+    - **Risk Assessment:** Business risks, reputation factors, regulatory concerns
+    - **Sales Intelligence:** Buying signals, budget indicators, decision processes
+    - **Recommendations:** Optimal approach, timing, stakeholder targeting
 
-    ### CRITICAL CITATION REQUIREMENTS
-    **Citation Format:** Use ONLY `<cite source="src-ID_NUMBER" />` tags immediately after claims
-    **Citation Strategy:**
-    - Cite factual claims, financial data, and leadership information
-    - Cite recent developments and news items
-    - Cite competitive positioning claims
-    - Do NOT include a separate References section - all citations must be inline
+    **2. CITATION INTEGRATION:**
+    **CRITICAL:** Use ONLY `<cite source="src-ID_NUMBER" />` format for citations
+    - Cite ALL factual claims, financial data, and specific information
+    - Place citations immediately after the relevant statement
+    - Cite leadership information and organizational details
+    - Cite financial metrics and market data
+    - Cite recent developments and strategic information
 
-    ### FINAL QUALITY CHECKS
-    - Ensure report follows standardized format structure
-    - Verify sections provide actionable insights
-    - Check proper citation placement throughout
-    - Ensure professional, objective tone
+    **3. CONTENT QUALITY STANDARDS:**
 
-    Generate a comprehensive organizational intelligence report that enables informed sales decision-making.
+    *Objectivity & Balance:*
+    - Present both positive and negative findings
+    - Include competitive challenges alongside advantages
+    - Note risks and opportunities equally
+    - Provide evidence-based analysis without bias
+
+    *Specificity & Detail:*
+    - Include specific figures, dates, and metrics
+    - Name key executives and their backgrounds
+    - Detail recent developments with timeframes
+    - Provide concrete examples and case studies
+
+    *Sales Intelligence Focus:*
+    - Highlight decision-maker identification
+    - Emphasize buying signals and opportunity indicators
+    - Include budget and financial capacity insights
+    - Provide actionable approach recommendations
+
+    *Professional Presentation:*
+    - Use appropriate HTML styling classes from the template
+    - Structure information with clear headings and subheadings
+    - Employ data cards for metrics and key figures
+    - Use highlight boxes for critical insights
+
+    **4. SPECIALIZED SECTION GUIDANCE:**
+
+    *Financial Performance Section:*
+    - Populate data cards with specific metrics
+    - Include revenue figures, funding rounds, valuation data
+    - Show growth trends and financial stability indicators
+    - Use .financial-metrics class for highlighting
+
+    *Risk Assessment Section:*
+    - Use .risk-warning class for serious concerns
+    - Balance risks with mitigation factors
+    - Include regulatory, market, and operational risks
+    - Provide context for risk evaluation
+
+    *Sales Intelligence Section:*
+    - Use .key-insights class for critical sales information
+    - Detail buying signals and opportunity timing
+    - Include decision-maker mapping and influence analysis
+    - Provide budget and procurement insights
+
+    **5. FINAL QUALITY REQUIREMENTS:**
+    - NO placeholder text should remain in final output
+    - ALL sections must be populated with relevant content
+    - Citations must be properly formatted and comprehensive
+    - Report must be professionally structured and complete
+    - Content must be actionable for sales strategy development
+
+    **IMPORTANT:** Your output will be processed by the HTML callback to generate the final styled report. Ensure all content is complete and properly cited.
+
+    Generate a comprehensive organizational intelligence report that enables informed strategic sales decision-making.
     """,
-    output_key="organizational_intelligence_agent",
-    after_agent_callback=citation_replacement_callback,
+    output_key="organizational_intelligence_report",
+    after_agent_callback=html_report_generator_callback,
 )
 
-# --- UPDATED PIPELINE WITH BETTER LOOP CONTROL ---
+# --- Enhanced Loop Control Agent ---
+class EscalationChecker(BaseAgent):
+    """Enhanced escalation checker with better evaluation detection and safety controls."""
+
+    def __init__(self, name: str):
+        super().__init__(name=name)
+
+    async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
+        """Improved escalation logic with multiple detection methods and safety controls."""
+        
+        evaluation_result = None
+        
+        try:
+            # Method 1: Direct from session state
+            evaluation_result = ctx.session.state.get("research_evaluation")
+            if evaluation_result:
+                logging.info(f"[{self.name}] Found evaluation in session state: {evaluation_result}")
+            
+            # Method 2: Search recent events for evaluation
+            if not evaluation_result:
+                for event in reversed(ctx.session.events[-10:]):  # Check last 10 events
+                    if hasattr(event, 'author') and 'evaluator' in str(event.author).lower():
+                        try:
+                            # Try to parse evaluation from event content
+                            content = str(event.content) if hasattr(event, 'content') else ""
+                            if '"grade"' in content:
+                                if '"pass"' in content.lower():
+                                    evaluation_result = {"grade": "pass"}
+                                    logging.info(f"[{self.name}] Found PASS in event content")
+                                    break
+                                elif '"fail"' in content.lower():
+                                    evaluation_result = {"grade": "fail"}
+                                    logging.info(f"[{self.name}] Found FAIL in event content")
+                                    break
+                        except Exception as e:
+                            logging.warning(f"[{self.name}] Error parsing event: {e}")
+                            continue
+            
+            # Method 3: Check all state values for evaluation objects
+            if not evaluation_result:
+                for key, value in ctx.session.state.items():
+                    try:
+                        if isinstance(value, dict) and "grade" in value:
+                            evaluation_result = value
+                            logging.info(f"[{self.name}] Found evaluation in state key '{key}'")
+                            break
+                        elif hasattr(value, 'grade'):
+                            evaluation_result = {"grade": getattr(value, 'grade')}
+                            logging.info(f"[{self.name}] Found evaluation object with grade attribute")
+                            break
+                    except Exception:
+                        continue
+
+        except Exception as e:
+            logging.error(f"[{self.name}] Error during evaluation detection: {e}")
+
+        # Determine escalation decision
+        should_escalate = False
+        grade_found = "unknown"
+        
+        if evaluation_result:
+            if isinstance(evaluation_result, dict):
+                grade = str(evaluation_result.get("grade", "")).lower().strip()
+                grade_found = grade
+                should_escalate = grade == "pass"
+            elif hasattr(evaluation_result, 'grade'):
+                grade = str(evaluation_result.grade).lower().strip()
+                grade_found = grade
+                should_escalate = grade == "pass"
+            else:
+                grade_text = str(evaluation_result).lower()
+                if "pass" in grade_text:
+                    grade_found = "pass"
+                    should_escalate = True
+                elif "fail" in grade_text:
+                    grade_found = "fail"
+                    should_escalate = False
+
+        # Safety mechanism
+        loop_counter = ctx.session.state.get("escalation_check_counter", 0) + 1
+        ctx.session.state["escalation_check_counter"] = loop_counter
+        
+        # Log decision details
+        logging.info(f"[{self.name}] Escalation Decision - Grade: {grade_found}, "
+                    f"Should Escalate: {should_escalate}, Loop Counter: {loop_counter}")
+        
+        if should_escalate:
+            logging.info(f"[{self.name}] Research quality APPROVED (grade: {grade_found}). Escalating to complete research.")
+            yield Event(author=self.name, actions=EventActions(escalate=True))
+        elif loop_counter >= 3:
+            logging.warning(f"[{self.name}] Maximum iterations reached ({loop_counter}). "
+                          f"Forcing escalation to prevent infinite loop.")
+            yield Event(author=self.name, actions=EventActions(escalate=True))
+        else:
+            logging.info(f"[{self.name}] Research needs improvement (grade: {grade_found}). "
+                        f"Continuing loop iteration {loop_counter}.")
+            yield Event(author=self.name)
+
+# --- ENHANCED PIPELINE ASSEMBLY ---
 organizational_research_pipeline = SequentialAgent(
     name="organizational_research_pipeline",
-    description="Executes comprehensive organizational intelligence research following the 4-phase methodology for sales-focused company analysis.",
+    description="Comprehensive organizational intelligence research pipeline with quality assurance loop and HTML report generation.",
     sub_agents=[
         organizational_section_planner,
         organizational_researcher,
         LoopAgent(
             name="quality_assurance_loop",
-            max_iterations=2,  # Keep at 2 for efficiency
+            max_iterations=3,  # Allow up to 3 iterations for quality improvement
             sub_agents=[
                 organizational_evaluator,
                 EscalationChecker(name="escalation_checker"),
@@ -594,40 +2052,73 @@ organizational_research_pipeline = SequentialAgent(
     ],
 )
 
-# --- MAIN AGENT (unchanged) ---
+# --- MAIN ORGANIZATIONAL INTELLIGENCE AGENT ---
 organizational_intelligence_agent = LlmAgent(
     name="organizational_intelligence_agent",
     model=config.worker_model,
-    description="Specialized organizational research assistant that creates comprehensive company intelligence reports for sales and business development.",
+    description="Advanced organizational intelligence system creating comprehensive HTML reports for strategic sales intelligence.",
     instruction=f"""
-    You are a specialized Organizational Intelligence Assistant focused on comprehensive company research for sales and business development purposes.
+    You are an advanced Organizational Intelligence System specializing in comprehensive company research and professional HTML report generation for strategic sales and business development.
 
     **CORE MISSION:**
-    Convert ANY user request about organizations into a systematic research plan that generates sales-relevant business intelligence.
+    Transform any organizational research request into a systematic intelligence gathering operation that produces a professional, citation-rich HTML report.
 
-    **CRITICAL WORKFLOW RULE:**
-    NEVER answer organizational questions directly. Your ONLY first action is to use `organizational_plan_generator` to create a research plan.
+    **OPERATIONAL PROTOCOL:**
+    
+    **Step 1: REQUEST ANALYSIS**
+    - Parse user request to identify target organization(s)
+    - Determine research scope and specific intelligence requirements
+    - Assess any special focus areas or constraints
 
-    **Your 3-Step Process:**
-    1. **Plan Generation:** Use `organizational_plan_generator` to create a comprehensive research plan
-    2. **Plan Refinement:** Ensure the plan is focused and achievable
-    3. **Research Execution:** Delegate to `organizational_research_pipeline` with the plan
+    **Step 2: STRATEGIC PLANNING**
+    - **MANDATORY:** Use `organizational_plan_generator` to create comprehensive research strategy
+    - Never attempt direct research without a systematic plan
+    - Ensure plan covers all critical business intelligence areas
 
-    **RESEARCH FOCUS AREAS:**
-    - Company Intelligence: Official information, business model, leadership
-    - Digital Presence: Website, social media, online reputation  
-    - Financial Health: Revenue, funding, market performance
-    - Competitive Position: Market share, advantages, industry standing
-    - Sales Intelligence: Decision-makers, buying signals, opportunities
-    - Risk Assessment: Controversies, regulatory issues, threats
+    **Step 3: RESEARCH EXECUTION**
+    - Delegate complete research execution to `organizational_research_pipeline`
+    - Monitor for quality assurance loop execution
+    - Ensure comprehensive data collection across all research phases
+
+    **RESEARCH INTELLIGENCE FOCUS:**
+    
+    *Strategic Sales Intelligence:*
+    - Decision-maker identification and contact mapping
+    - Buying signal detection and opportunity timing
+    - Budget capacity and financial health assessment
+    - Competitive positioning and differentiation analysis
+
+    *Comprehensive Business Intelligence:*
+    - Corporate structure and leadership analysis
+    - Financial performance and market position
+    - Technology infrastructure and innovation focus
+    - Risk assessment and due diligence factors
+
+    *Market & Competitive Analysis:*
+    - Industry positioning and market share data
+    - Competitive landscape and threat assessment
+    - Strategic partnerships and alliance networks
+    - Recent developments and future strategic direction
+
+    **OUTPUT SPECIFICATIONS:**
+    - Professional HTML report with Wikipedia-style citations
+    - Comprehensive coverage of all business intelligence areas
+    - Sales-ready insights and strategic recommendations
+    - Risk assessment and opportunity analysis
+    - Executive summary with key strategic insights
+
+    **QUALITY STANDARDS:**
+    - Multi-source verification for critical facts
+    - Recent information prioritized (12-18 months)
+    - Both positive and negative aspects included
+    - Professional presentation with proper citations
+    - Actionable intelligence for sales strategy
 
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
 
-    Remember: Plan → Refine → Execute. Always delegate to the specialized research pipeline.
+    **REMEMBER:** Always begin with strategic planning, then execute through the comprehensive research pipeline.
     """,
     sub_agents=[organizational_research_pipeline],
     tools=[AgentTool(organizational_plan_generator)],
-    output_key="client_org_research_plan",
+    output_key="organizational_intelligence_system",
 )
-
-# root_agent = organizational_intelligence_agent

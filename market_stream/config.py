@@ -34,13 +34,13 @@ class ResearchConfiguration:
     critic_model = LiteLlm(model="openai/gpt-5-nano")
     worker_model = LiteLlm(model="openai/gpt-5-nano")
     search_model = Gemini(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             retry_options=genai_types.HttpRetryOptions(
-            initial_delay=3,
+            initial_delay=10,
             attempts=3
             )
         )
-    max_search_iterations: int = 5
+    max_search_iterations: int = 3
 
 
 config = ResearchConfiguration()
