@@ -245,12 +245,12 @@ simplified_intelligence_agent = SequentialAgent(
     sub_agents=[
         input_analyzer,                         # Analyze input + extract project_id
         project_creator,                        # Create blank project in MongoDB
-        org_prompt_builder,                     # Build org prompt  
-        organizational_intelligence_agent,      # Execute org intelligence + auto-store
+        # org_prompt_builder,                     # Build org prompt  
+        # organizational_intelligence_agent,      # Execute org intelligence + auto-store
         segmentation_prompt_builder,            # Build segmentation prompt
         segmentation_intelligence_agent,        # Execute segmentation + auto-store
-        prospect_prompt_builder,                # Build prospect prompt
-        prospect_researcher,                    # Execute prospect research + auto-store
+        # prospect_prompt_builder,                # Build prospect prompt
+        # prospect_researcher,                    # Execute prospect research + auto-store
     ]
 )
 
