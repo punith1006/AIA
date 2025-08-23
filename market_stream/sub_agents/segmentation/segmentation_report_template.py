@@ -6,8 +6,8 @@ SEG_TEMPLATE = """
     ---
     ### INPUT DATA SOURCES
     * Research Findings: {segmentation_research_findings}
-    * Citation Sources: {citations}
-    * Report Structure: {report_sections}
+    * Citation Sources: {sources}
+    * Report Structure: {segmentation_research_plan}
 
     ---
     ### HTML TEMPLATE
@@ -55,19 +55,25 @@ SEG_TEMPLATE = """
     header.meta{display:flex;gap:16px;padding:18px 36px;background:#f8f9fa;border-bottom:1px solid #eef2ff;color:var(--muted);flex-wrap:wrap}
     header.meta .meta-item{font-size:0.9rem}
 
-    /* Two-column layout */
-    .content{display:grid;grid-template-columns:280px 1fr;gap:var(--gutter);padding:28px}
-    nav.toc{position:sticky;top:28px;padding:18px;background:linear-gradient(180deg,#fff, #fbfdff);border-radius:12px;border:1px solid #eef2ff}
-    nav.toc h3{margin:0 0 12px;font-size:1rem;color:#2c3e50}
-    nav.toc ul{list-style:none;padding:0;margin:0;display:grid;gap:8px}
-    nav.toc a{color:var(--accent);text-decoration:none;font-weight:600}
-    nav.toc a small{display:block;color:var(--muted);font-weight:500}
-
-    /* Main article */
-    main.report-body{padding:6px 0}
+    /* Main content */
+    main.report-body{padding:28px}
     section.card{background:var(--card);border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid #eef2ff}
     section.card h2{margin:0 0 10px;font-size:1.25rem;border-bottom:2px solid #f1f5ff;padding-bottom:8px}
     .lead-para{background:linear-gradient(90deg, rgba(102,126,234,0.06), rgba(118,75,162,0.02));padding:14px;border-radius:8px;margin-bottom:12px}
+
+    /* Table of Contents at the top */
+    .toc-top {
+      padding: 20px;
+      background: linear-gradient(180deg, #fff, #fbfdff);
+      border-radius: 12px;
+      border: 1px solid #eef2ff;
+      margin-bottom: 28px;
+    }
+    .toc-top h3 {margin:0 0 12px;font-size:1rem;color:#2c3e50}
+    .toc-top ul{list-style:none;padding:0;margin:0;display:grid;grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));gap:8px}
+    .toc-top a{color:var(--accent);text-decoration:none;font-weight:600;display:block;padding:8px 12px;border-radius:6px;}
+    .toc-top a:hover{background:#f0f4ff}
+    .toc-top a small{display:block;color:var(--muted);font-weight:500}
 
     /* Grid cards */
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
@@ -137,10 +143,18 @@ SEG_TEMPLATE = """
     }
 
     /* Responsive */
-    @media (max-width:920px){.content{grid-template-columns:1fr;}.visuals{grid-template-columns:1fr}.swot{grid-template-columns:1fr}.toc{position:relative;order:2}}
+    @media (max-width:920px){
+      .visuals{grid-template-columns:1fr}
+      .swot{grid-template-columns:1fr}
+      .toc-top ul{grid-template-columns: 1fr;}
+    }
 
     /* Print tweaks */
-    @media print{body{padding:0;background:white}.wrap{box-shadow:none;border-radius:0}.content{grid-template-columns:1fr}.toc{display:none}}
+    @media print{
+      body{padding:0;background:white}
+      .wrap{box-shadow:none;border-radius:0}
+      .toc-top{display:none}
+    }
   </style>
 </head>
 <body>
@@ -158,12 +172,12 @@ SEG_TEMPLATE = """
     </div>
 
     <div class="content">
-      <!-- LEFT: TOC / Quick filters -->
-      <nav class="toc" aria-label="Table of contents">
+      <!-- Table of Contents at the top -->
+      <nav class="toc-top">
         <h3>Contents</h3>
         <ul>
-          <li><a href="#exec">1. Executive Summary</a><small> — Key findings & recommendations</small></li>
-          <li><a href="#definitions">2. Key Definitions</a><small> — Terminology & abbreviations</small></li>
+          <li><a href="#exec">1. Executive Summary<small> — Key findings & recommendations</small></a></li>
+          <li><a href="#definitions">2. Key Definitions<small> — Terminology & abbreviations</small></a></li>
           <li><a href="#pestle">3. Market Overview (PESTLE)</a></li>
           <li><a href="#competitive">4. Competitive Landscape</a></li>
           <li><a href="#segments">5. Core Segments</a></li>
@@ -173,7 +187,7 @@ SEG_TEMPLATE = """
           <li><a href="#position">9. Positioning</a></li>
           <li><a href="#mix">10. Marketing Mix</a></li>
           <li><a href="#conclude">11. Conclusion</a></li>
-          <li><a href="#appendix">12. Appendix</a><small> — Methodology & data sources</small></li>
+          <li><a href="#appendix">12. Appendix<small> — Methodology & data sources</small></a></li>
         </ul>
 
         <hr style="margin:12px 0;border:none;border-top:1px dashed #eef2ff" />
@@ -186,7 +200,7 @@ SEG_TEMPLATE = """
         </div>
       </nav>
 
-      <!-- RIGHT: Main content -->
+      <!-- Main content -->
       <main class="report-body">
 
         <!-- 1 EXECUTIVE -->
@@ -392,7 +406,6 @@ SEG_TEMPLATE = """
   </div>
 </body>
 </html>
-
     ```
 
     ---
