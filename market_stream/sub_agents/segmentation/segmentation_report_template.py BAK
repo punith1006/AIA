@@ -6,7 +6,7 @@ SEG_TEMPLATE = """
     ---
     ### INPUT DATA SOURCES
     * Research Findings: {segmentation_research_findings}
-    * Citation Sources: {citations}
+    * Citation Sources: {sources}
     * Report Structure: {final_report_with_citations}
 
     ---
@@ -1335,19 +1335,36 @@ SEG_TEMPLATE = """
         4. Ensure each reference has a unique ID matching the citation links above
         5. Add or remove references as needed based on your analysis
         
-        CRITICAL: DO NOT CREATE OR USE CITATIONS THAT AREN'T EXPLICITLY LISTED IN THE INPUT DATA. NEVER USE "example.com" OR ANY SUCH ASSUMPTIONS.
-        
         Format: [Reference Number] Source Description - "Quote or key finding" URL (if available)
         -->
         <section id="references">
             <h2>References</h2>
             
             <ul class="reference-list">
-                <li id="ref-1"><span class="reference-number">[1]</span> <a href = "[[REF_1_URL]]" class="citation-link">[[REF_1_CONTENT]]</a></li>
-                <li id="ref-2"><span class="reference-number">[2]</span> <a href = "[[REF_2_URL]]" class="citation-link">[[REF_2_CONTENT]]</a></li>
-                <li id="ref-3"><span class="reference-number">[3]</span> <a href = "[[REF_3_URL]]" class="citation-link">[[REF_3_CONTENT]]</a></li>
-                <li id="ref-4"><span class="reference-number">[4]</span> <a href = "[[REF_4_URL]]" class="citation-link">[[REF_4_CONTENT]]</a></li>
-                <li id="ref-5"><span class="reference-number">[5]</span> <a href = "[[REF_5_URL]]" class="citation-link">[[REF_5_CONTENT]]</a></li>
+                <li id="ref-1"><span class="reference-number">[1]</span> [[REF_1_CONTENT]]</li>
+                <li id="ref-2"><span class="reference-number">[2]</span> [[REF_2_CONTENT]]</li>
+                <li id="ref-3"><span class="reference-number">[3]</span> [[REF_3_CONTENT]]</li>
+                <li id="ref-4"><span class="reference-number">[4]</span> [[REF_4_CONTENT]]</li>
+                <li id="ref-5"><span class="reference-number">[5]</span> [[REF_5_CONTENT]]</li>
+                <li id="ref-6"><span class="reference-number">[6]</span> [[REF_6_CONTENT]]</li>
+                <li id="ref-7"><span class="reference-number">[7]</span> [[REF_7_CONTENT]]</li>
+                <li id="ref-8"><span class="reference-number">[8]</span> [[REF_8_CONTENT]]</li>
+                <li id="ref-9"><span class="reference-number">[9]</span> [[REF_9_CONTENT]]</li>
+                <li id="ref-10"><span class="reference-number">[10]</span> [[REF_10_CONTENT]]</li>
+                <li id="ref-11"><span class="reference-number">[11]</span> [[REF_11_CONTENT]]</li>
+                <li id="ref-12"><span class="reference-number">[12]</span> [[REF_12_CONTENT]]</li>
+                <li id="ref-13"><span class="reference-number">[13]</span> [[REF_13_CONTENT]]</li>
+                <li id="ref-14"><span class="reference-number">[14]</span> [[REF_14_CONTENT]]</li>
+                <li id="ref-15"><span class="reference-number">[15]</span> [[REF_15_CONTENT]]</li>
+                <li id="ref-16"><span class="reference-number">[16]</span> [[REF_16_CONTENT]]</li>
+                <li id="ref-17"><span class="reference-number">[17]</span> [[REF_17_CONTENT]]</li>
+                <li id="ref-18"><span class="reference-number">[18]</span> [[REF_18_CONTENT]]</li>
+                <li id="ref-19"><span class="reference-number">[19]</span> [[REF_19_CONTENT]]</li>
+                <li id="ref-20"><span class="reference-number">[20]</span> [[REF_20_CONTENT]]</li>
+                <li id="ref-21"><span class="reference-number">[21]</span> [[REF_21_CONTENT]]</li>
+                <li id="ref-22"><span class="reference-number">[22]</span> [[REF_22_CONTENT]]</li>
+                <li id="ref-23"><span class="reference-number">[23]</span> [[REF_23_CONTENT]]</li>
+                <li id="ref-24"><span class="reference-number">[24]</span> [[REF_24_CONTENT]]</li>
             </ul>
 
         </section>
