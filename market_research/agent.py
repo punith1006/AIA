@@ -7,7 +7,6 @@ from google.adk.agents.callback_context import CallbackContext
 from .tools.mongoupload import update_project_report, create_blank_project
 from .sub_agents.market_context import market_intelligence_agent
 from .sub_agents.segmentation import segmentation_intelligence_agent
-from .sub_agents.client_org_research import organizational_intelligence_agent
 from .sub_agents.target_org_research import sales_intelligence_agent
 from .sub_agents.prospect_research import prospect_researcher
 from .config import config
@@ -149,14 +148,14 @@ def extract_project_id(callback_context: CallbackContext):
 # ----------------------------------------------------------------------
 market_intelligence_agent.output_key = "market_intelligence_agent"
 segmentation_intelligence_agent.output_key = "segmentation_intelligence_agent"
-organizational_intelligence_agent.output_key = "organizational_intelligence_agent"
+# organizational_intelligence_agent.output_key = "organizational_intelligence_agent"
 sales_intelligence_agent.output_key = "sales_intelligence_agent"
 prospect_researcher.output_key = "prospect_researcher"
 
 # Add after-agent callbacks for storage
 market_intelligence_agent.after_agent_callback = [store_market_report]
 segmentation_intelligence_agent.after_agent_callback = [store_segmentation_report]
-organizational_intelligence_agent.after_agent_callback = [store_organizational_report]
+# organizational_intelligence_agent.after_agent_callback = [store_organizational_report]
 # Note: sales_intelligence_agent callback will be added to conditional_sales_intelligence_agent
 prospect_researcher.after_agent_callback = [store_prospect_report]
 
@@ -375,7 +374,6 @@ prospect_prompt_builder = LlmAgent(
         
         User Analysis: {user_analysis}
         Segmentation Report: {segmentation_intelligence_agent}
-        Organizational Report: {organizational_intelligence_agent}
         
         Note: Sales intelligence may be skipped if no specific targets were identified.
         
@@ -427,8 +425,8 @@ comprehensive_intelligence_chancellor = SequentialAgent(
         market_intelligence_agent,              # Execute market intelligence + auto-store
         segmentation_prompt_builder,            # Build segmentation prompt
         segmentation_intelligence_agent,        # Execute segmentation + auto-store
-        org_prompt_builder,                     # Build org prompt
-        organizational_intelligence_agent,      # Execute org intelligence + auto-store
+        # org_prompt_builder,                     # Build org prompt
+        # organizational_intelligence_agent,      # Execute org intelligence + auto-store
         conditional_sales_prompt_builder,       # Conditionally build sales prompt OR skip
         conditional_sales_intelligence_agent,   # Conditionally execute sales intelligence + auto-store OR skip
         prospect_prompt_builder,                # Build prospect prompt (handles optional sales data)

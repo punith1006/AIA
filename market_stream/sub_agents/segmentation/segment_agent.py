@@ -827,4 +827,4 @@ segmentation_intelligence_agent = LlmAgent(
     output_key="research_plan",
 )
 
-root_agent = segmentation_intelligence_agent
+# root_agent = segmentation_intelligence_agent

@@ -158,7 +158,7 @@ def wikipedia_citation_callback(callback_context: CallbackContext) -> genai_type
         logging.warning("[wikipedia_citation_callback] No citations used — returning uncited report.")
 
     # Always store something in state
-    callback_context.state["final_report_with_citations"] = processed_report
+    callback_context.state["market_intelligence_agent"] = processed_report
 
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
     
@@ -746,6 +746,16 @@ market_report_composer = LlmAgent(
     after_agent_callback=wikipedia_citation_callback,
 )
 
+from .con_template import CON_TEMPLATE
+
+html_converter = LlmAgent(
+    model=config.critic_model,
+    name="html_converter",
+    description="Converts markdown market analysis reports to styled HTML using the provided template.",
+    instruction=CON_TEMPLATE,
+    output_key="context_html",
+)
+
 # --- Market Research Pipeline and Main Agent ---
 market_research_pipeline = SequentialAgent(
     name="market_research_pipeline",
@@ -763,6 +773,7 @@ market_research_pipeline = SequentialAgent(
             ],
         ),
         market_report_composer,
+        html_converter,  # Add the HTML converter here
     ],
 )
 
@@ -786,7 +797,7 @@ market_intelligence_agent = LlmAgent(
     Upon receiving a market research request:
     1. Use `market_plan_generator` to create a comprehensive research plan (no user approval needed)
     2. Immediately delegate to `market_research_pipeline` with the generated plan
-    3. Return the final Market Analysis Report with Wikipedia-style numbered citations
+    3. Return both the markdown report and a styled HTML webpage version
     
     **RESEARCH FOCUS AREAS:**
     - Market Scope: industry segments, geography
@@ -795,21 +806,23 @@ market_intelligence_agent = LlmAgent(
     - Strategy: opportunities and threats
     
     **OUTPUT FORMAT:**
-    The final result will be a detailed Market Analysis Report with:
-    - Wikipedia-style numbered citations in the text (e.g., [1], [2])
-    - Clickable citation links within the report
-    - Complete References section at the bottom with all cited sources
-    - Actionable insights and strategic recommendations
+    The final result will include:
+    1. **Markdown Report:** Detailed Market Analysis Report with Wikipedia-style numbered citations
+    2. **HTML Webpage:** Professional, styled HTML version using the con_html template with:
+       - Interactive table of contents
+       - Responsive design with data visualizations
+       - Clickable citations and references
+       - Professional styling with charts and metrics cards
     
     **EXECUTION MODE: FULLY AUTONOMOUS**
     - Do not ask to review plans
     - Do not request refinements
     - Do not wait for user confirmation
-    - Execute immediately and deliver the final report
+    - Execute immediately and deliver both formats
     
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
     
-    Process: Generate Plan → Execute Research → Deliver Report (zero user interaction)
+    Process: Generate Plan → Execute Research → Deliver Report → Convert to HTML (zero user interaction)
     """,
     sub_agents=[market_research_pipeline],
     tools=[AgentTool(market_plan_generator)],

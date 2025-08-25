@@ -3,32 +3,38 @@ from pymongo import MongoClient
 import requests,json
 
 def create_blank_project(project_id: str):
-    """
-    Creates a blank project document in MongoDB with the given project_id.
-    The document will have placeholders for specific report fields.
-    """
-    mongo_uri = os.getenv("MONGO_DB_CONNECTOR")
-    if not mongo_uri:
-        raise ValueError("MONGO_DB_CONNECTOR environment variable is not set.")
-
-    client = MongoClient(mongo_uri)
+    from pymongo import MongoClient
+    connection_string = os.getenv("MONGO_DB_CONNECTOR")
+    client = MongoClient(connection_string)
     db = client["sales_reports"]
     collection = db["projects"]
 
+    # Check if a document with the same project_id exists
+    existing_doc = collection.find_one({"project_id": project_id})
+    
+    if existing_doc:
+        print(f"Document with project_id '{project_id}' already exists.")
+        return True  # No document is created, but returning False would cause pointless tool reruns 
+
+    # If not found, insert the blank document
     document = {
         "project_id": project_id,
-        "client_org_research": None,
-        "market_context": None,
-        "prospect_research": None,
-        "market_segment": None,
-        "target_org_research": None
+        "client_org_research": "",
+        "prospect_research": "",
+        "market_segment": "",
+        "target_org_research": "",
+        "client_org_research_html": "",
+        "market_context_html": "",
+        "prospect_research_html": "",
+        "market_segment_html": "",
+        "target_org_research_html": ""
     }
 
     collection.insert_one(document)
-    client.close()
+    print(f"New document created for project_id '{project_id}'.")
+    return True 
 
-
-def update_project_report(project_id: str, report: str, report_type: str):
+def update_project_report(project_id: str, report: str, report_type: str, html_report: str = ""):
     """
     Updates the report field (report_type) in the project document with the given project_id.
     """
@@ -53,10 +59,10 @@ def update_project_report(project_id: str, report: str, report_type: str):
 
     result = collection.update_one(
         {"project_id": project_id},
-        {"$set": {report_type: report}}
+        {"$set": {report_type: report, f"{report_type}_html":html_report}}
     )
 
-    requests.put(f"https://stu.globalknowledgetech.com:8444/project/project-status-update/{project_id}/",headers = {'Content-Type': 'application/json'}, data = json.dumps({"status": f"{report_type} updated"}))
+    requests.put(f"https://stu.globalknowledgetech.com:8444/project/project-status-update/{project_id}/",headers = {'Content-Type': 'application/json'}, data = json.dumps({"sub_status": f"{report_type} updated"}))
 
     client.close()
 

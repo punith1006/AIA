@@ -16,6 +16,7 @@ from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
 from ...config import config
+from .segmentation_report_template import SEG_TEMPLATE
 
 # --- Structured Output Models ---
 class SegmentationSearchQuery(BaseModel):
@@ -95,7 +96,7 @@ def collect_research_sources_callback(callback_context: CallbackContext) -> None
 
 def wikipedia_citation_replacement_callback(callback_context: CallbackContext) -> genai_types.Content:
     """Replaces citation tags with Wikipedia-style numbered citations and adds reference section."""
-    final_report = callback_context.state.get("segmentation_intelligence_agent", "")
+    final_report = callback_context.state.get("final_cited_report", "")
     citations = callback_context.state.get("citations", {})
 
     def tag_replacer(match: re.Match) -> str:
@@ -156,7 +157,7 @@ class EscalationChecker(BaseAgent):
 
 # --- Agent Definitions ---
 segmentation_plan_generator = LlmAgent(
-    model = config.search_model,
+    model=config.search_model,
     name="segmentation_plan_generator",
     description="Generates comprehensive segmentation research plans focusing on market segments and customer segments.",
     instruction=f"""
@@ -169,7 +170,7 @@ segmentation_plan_generator = LlmAgent(
     - Segmentation Framework and Targeting Recommendations
 
     **RESEARCH PHASES STRUCTURE:**
-    Organize your plan into clear phases with specific objectives:
+    Organize your plan into clear phase with specific objectives:
 
     **Phase 1: Market Segment Discovery (30% of effort) - [RESEARCH] tasks:**
     - Identify all potential market segments and sub-segments relevant to the product.
@@ -221,7 +222,7 @@ segmentation_plan_generator = LlmAgent(
 )
 
 segmentation_section_planner = LlmAgent(
-    model = config.worker_model,
+    model=config.worker_model,
     name="segmentation_section_planner",
     description="Creates a structured segmentation analysis report outline following a standardized format.",
     instruction="""
@@ -229,48 +230,296 @@ segmentation_section_planner = LlmAgent(
 
     Your outline must include these core sections (omit sections only if explicitly noted in the research plan):
 
-    # 1. Executive Summary
-    - Overview of scope and goals
-    - Key target segments identified
-    - Summary of major findings (e.g., top segments, growth opportunities)
-    - Strategic recommendations in brief
+    ### 1.. Executive Summary: The Strategic Landscape at a Glance
 
-    # 2. Market Segment Overview
-    - List of identified market segments and categories
-    - Definitions and characteristics of each segment
-    - Industry context for each segment
+Purpose:  A high-level, impactful summary of the entire analysis for executive readers.
+    
+Contents:
+    
+    Core Objective:  The fundamental purpose of this analysis (e.g., "To decode the market landscape for [Product Category] and identify the most viable customer segments for strategic focus.").
+        
+    The Market in Brief:  A single paragraph describing the total addressable market (TAM), its growth rate, and key overarching trends.
+        
+    Key Segments Identified:  A bulleted list of the 3-4 most critical segments discovered, with a one-sentence descriptor for each.
+        
+        *Example:  `The Enterprise Optimizer:`  _Large businesses seeking integrated, secure, and scalable solutions to automate core processes._
+            
+    Primary Target Recommendation:  A clear statement on which segment(s) present the greatest opportunity and why.
+        
+    Critical Strategic Insight:  The most important non-obvious finding from the analysis (e.g., "While the 'Budget-Conscious' segment is large, the 'Value-Seeking SMB' segment is more profitable and currently underserved by competitors.").
+        
 
-    # 3. Customer Segment Profiles
-    - Demographic and firmographic profiles by segment
-    - Behavioral and needs-based patterns for each customer group
-    - Key decision makers and influencers in each segment
+---
 
-    # 4. Segment Attractiveness & Competition
-    - Segment size and growth rate estimates
-    - Competitive intensity and major competitors per segment
-    - Accessibility, channels, and barriers analysis for segments
+### 2.. Market Overview & Macro-Environment (PESTLE Analysis)
 
-    # 5. Segment Prioritization & Strategic Fit
-    - Criteria for evaluation (size, fit, competition, strategic alignment)
-    - Ranking of top segments with rationale
-    - Alignment of product features to segment needs
+Purpose:  To paint a broad picture of the external forces shaping the entire market and its segments.
+    
+Contents:  A analytical narrative on how each factor influences market dynamics.
+    
+    Political:  Government regulations, trade policies, and political stability that impact market entry or product features (e.g., data privacy laws like GDPR, import tariffs).
+        
+    Economic:  Economic growth, inflation rates, disposable income, and investment climate that affect purchasing power and willingness to spend.
+        
+    Social:  Demographic shifts, cultural trends, consumer attitudes, and lifestyle changes (e.g., remote work adoption, sustainability concerns, health consciousness).
+        
+    Technological:  Key technological advancements, R&D focus, automation trends, and the rate of innovation that could disrupt or enable the market.
+        
+    Legal:  Industry-specific laws, copyright/patent landscapes, consumer protection laws, and licensing requirements.
+        
+    Environmental:  Environmental regulations, climate change implications, and the growing importance of eco-friendly and sustainable practices.
+        
+Display:  Table: PESTLE Impact Assessment
+    
+    _Columns:_  `Factor`,  `Current Trend`,  `Impact on Market (Positive/Negative/Neutral)`,  `Implication for Segmentation`.
+        
 
-    # 6. Segmentation Framework & Recommendations
-    - Clear definition and boundaries for each priority segment
-    - Targeting recommendations and next steps per segment
-    - Opportunities and potential risks for each segment
+---
 
-    # 7. Conclusions
-    - Recap of strategic insights
-    - Final recommendations for market targeting strategy
+### 3.. Competitive Landscape: The Arena of Play
 
-    Ensure the outline is comprehensive but allow sections to be omitted if no relevant information is found. Citations will be handled automatically in Wikipedia style with numbered references.
+Purpose:  To identify key competitors and analyze their segment-specific strategies.
+    
+Contents:
+    
+    Key Competitors:  List of direct and indirect competitors.
+        
+    3.1 : Competitive Positioning Map:
+        
+        Display:  A perceptual map (a two-axis chart). Common axes include:
+            
+            Price (Low to High) vs. Quality (Basic to Premium)
+                
+            Innovation (Traditional to Cutting-Edge) vs. Service (Self-Serve to Full-Service)
+                
+            This visually shows where each competitor resides and reveals potential gaps in the market.
+                
+    Analysis of Competitor Segment Focus:  For each major competitor, hypothesize which segment(s) they are primarily targeting based on their marketing messaging, product features, and pricing. Identify which segments are overserved and underserved.
+        
+	3.1 Porter's Five Forces Analysis
+    
+    Purpose:  To assess the overall industry attractiveness and understand the root causes of competitive pressure.
+        
+    Contents:  A brief analysis of each force:
+        
+        1. Threat of New Entrants:  How easy is it for new companies to start up? (Barriers: capital, regulations, technology, brand loyalty).
+            
+        2. Bargaining Power of Buyers:  How much power do customers have to drive down prices? (Buyer concentration, price sensitivity, alternative options).
+            
+        3. Bargaining Power of Suppliers:  How much power do suppliers of key components have? (Number of suppliers, uniqueness of inputs).
+            
+        4. Threat of Substitute Products/Services:  What alternatives can customers use instead? (Direct, indirect, and generic substitutes).
+            
+        5. Intensity of Rivalry Among Existing Competitors:  How fierce is the current competition? (Number of competitors, market growth rate, fixed costs).
+            
+    Implication for Segments:  Conclude with how this industry analysis impacts segment attractiveness.  _Example: "High buyer power in the enterprise segment means competing on value, not price. Low threat of substitutes in the niche 'prosumer' segment makes it defensible."_
+---
+
+### 4.. Identification of Core Market Segments
+
+Purpose:  To define and present the distinct, meaningful segments within the total market.
+    
+Contents:  A high-level overview of all segments before deep diving.
+    
+Display:  Table: Market Segment Portfolio
+    
+    _Columns:_  `Segment Name`,  `Primary Defining Characteristics`,  `Estimated Segment Size (Units/$)`,  `Estimated Growth Rate (%)`,  `Key Need/Pain Point`.
+        
+    _This table provides an at-a-glance comparison of the potential of each segment._
+        
+
+---
+
+### 5.. Deep-Dive Segment Profiles
+
+Purpose:  The heart of the report. To provide a rich, detailed profile of each potentially viable segment.  _This section should be repeated for each major segment (e.g., Segment A, B, C)._
+    
+    Segment A: [Evocative Name, e.g., "The Efficiency-Driven Enterprise"]
+        
+        5.A.1 Demographic & Firmographic Profile:
+            
+            _For B2C:_  Age, Income, Education, Occupation, Family Status.
+                
+            _For B2B:_  Company Size (Employees/Revenue), Industry, Geographic Location, Department/Title of Decision-Maker.
+                
+        5.A.2 Psychographic & Behavioral Profile:
+            
+            Goals & Motivations:  What are they trying to achieve? (e.g., increase productivity, reduce costs, enhance status, gain a competitive advantage).
+                
+            Pain Points & Frustrations:  What are their biggest challenges? (e.g., complex legacy systems, high operational costs, lack of integration, unreliable service).
+                
+            Values & Preferences:  What do they care about? (e.g., data security, excellent customer support, brand reputation, ease of use).
+                
+            Buying Behavior:  How do they buy? (Committee decision vs. individual, long sales cycle, high research intensity, price-sensitive).
+                
+        5.A.3 Media Consumption & Communication Channels:
+            
+            Where do they get information and spend their time? (e.g., LinkedIn, specific industry publications/websites, professional associations, podcasts, trade shows).
+                
+        5.A.4 Current Solution & Switching Triggers:
+            
+            What are they using now? What would cause them to look for a new solution? (e.g., contract renewal, business growth pain, a negative incident).
+                
+
+---
+
+### 6.. Segment Evaluation & Attractiveness Analysis
+
+Purpose:  To systematically evaluate and rank the segments to determine which are most worthy of pursuit.
+    
+Contents:  A rigorous assessment based on strategic criteria.
+    
+Display:  Table: 6.1 Segment Attractiveness Matrix
+    
+    _Rows:_  Each Segment (A, B, C...)
+        
+    _Columns:_  Evaluation Criteria (rated High/Medium/Low or on a 1-5 scale).
+        
+        Size:  The overall volume of the segment.
+            
+        Growth Potential:  The expected future growth rate.
+            
+        Profitability:  The potential for healthy margins (based on willingness to pay, cost to serve).
+            
+        Accessibility:  The ability to reach the segment with marketing messages and channels.
+            
+        Strategic Fit:  How well the segment's needs align with our company's strengths, capabilities, and brand.
+            
+        Competitive Intensity:  The number and strength of competitors already serving this segment.
+            
+Narrative Analysis:  Based on the matrix, provide commentary on which segments are most attractive and why. This is where you argue for your recommended targets.
+
+6.2 Segment-Specific SWOT Analysis
+    
+    Purpose:  To identify the internal and external factors that are most relevant to successfully pursuing  _each key segment_. This moves from a general company SWOT to a targeted, segment-focused one.
+        
+    Contents:  For each  primary target segment  identified in your evaluation, create a dedicated SWOT.
+        
+    Display: Table: SWOT Analysis for Segment A: [Segment Name]
+        
+        Strengths (Internal):  What are our  company's specific strengths  that are highly valued by  _this segment_?
+            
+            _Example: "Our robust data security features directly address the top concern of the 'Security-Conscious Enterprise' segment."_
+                
+        Weaknesses (Internal):  What are our  company's specific weaknesses  that will hinder us with  _this segment_?
+            
+            *Example: "Our lack of 24/7 phone support is a critical weakness for the 'High-Touch SMB' segment that expects immediate help."*
+                
+        Opportunities (External):  What  external trends or market gaps  can we exploit to win  _this segment_?
+            
+            _Example: "A recent regulatory change (PESTLE) forces companies in this segment to seek new compliant solutions, which we offer."_
+                
+        Threats (External):  What  external challenges or competitor actions  specific to  _this segment_  do we face?
+            
+            _Example: "A key competitor is launching a stripped-down, low-cost version aimed directly at the 'Price-Sensitive Starter' segment."_
+                
+    Strategic Implications from SWOT:  Below the table, add a brief narrative on what the SWOT means.
+        
+        _How can we use our Strengths to capitalize on Opportunities? (SO Strategies)_
+            
+        _How can we use our Strengths to mitigate Threats? (ST Strategies)_
+            
+        _How can we fix our Weaknesses to pursue Opportunities? (WO Strategies)_
+            
+        _How can we avoid our Weaknesses being exposed by Threats? (WT Strategies)_    
+
+---
+
+### 7.. Targeting Strategy & Strategic Recommendations
+
+Purpose:  To synthesize the analysis into a clear strategic direction.
+    
+Contents:
+    
+    Recommended Targeting Strategy:
+        
+        Concentrated (Niche) Targeting:  Focusing on a single, primary segment.
+            
+        Differentiated (Multi-Segment) Targeting:  Pursuing two or more distinct segments with tailored strategies for each.
+            
+        Justification:  A clear argument for the chosen strategy based on the evaluation in Section 6.
+            
+    Recommended Primary & Secondary Targets:  Explicitly name the segments chosen as primary and secondary targets.
+
+	Strategic Growth Options (Ansoff Matrix)
+
+		Purpose:  To define the type of market growth strategy that aligns with the chosen segments.
+		    
+		Contents:  A brief analysis of which quadrant(s) of the matrix are most relevant.
+		    
+		    Market Penetration:  Selling more of existing products to the chosen segments.
+		        
+		    Product Development:  Developing new products for the chosen segments.
+		        
+		    Market Development:  Taking existing products into new, similar segments.
+		        
+		    Diversification:  Developing new products for new segments (high risk).
+		        
+		Display:  A simple 2x2 grid graphic of the Ansoff Matrix, with the recommended strategy circled.
+		    
+		Narrative:  _"Our recommended strategy is  Product Development  for the 'Enterprise' segment, as we need to add advanced API features to meet their specific needs, while pursuing  Market Penetration  in the 'SMB' segment with our current feature set."_ 
+
+---
+
+### 8.. Positioning & Value Proposition Development
+
+Purpose:  To define how we will win the chosen segments by creating a unique and valuable place in the customer's mind.
+    
+Contents:  For each  _primary target segment_.
+    
+    Positioning Statement:
+        
+        "For [target segment], who [have this need], our [product/service] is a [category] that [provides this key benefit]. Unlike [primary alternative/competitor], we [unique differentiator]."
+            
+    Core Value Proposition:  A compelling, customer-centric statement that summarizes the tangible value delivered.
+        
+        _Example: "Not just accounting software; it's peace of mind and hours saved every week."_
+            
+    Messaging Pillars:  The 3-4 key themes that all communication to this segment should emphasize (e.g., "Security," "Ease of Use," "24/7 Expert Support").
+        
+
+---
+
+### 9.. Marketing Mix Implications (The 4Ps)
+
+Purpose:  To translate the high-level strategy into actionable tactical domains.
+    
+Contents:  For each  _primary target segment_.
+    
+    Product:  What features, functionality, packaging, or branding should be emphasized, developed, or modified to better serve this segment?
+        
+    Price:  What pricing model (subscription, one-time, freemium), price point (premium, value), and discount structure is most appropriate?
+        
+    Place (Distribution):  Through which channels should the product be sold and delivered? (Direct sales, online marketplace, retail partners, value-added resellers).
+        
+    Promotion:  What specific marketing messages, channels (e.g., LinkedIn ads for B2B, Instagram influencers for B2C), and types of content (whitepapers, webinars, short-form video) will resonate most effectively?
+        
+
+---
+
+### 10.. Conclusion: Synthesis and Forward Look
+
+Purpose:  To summarize the analytical journey and reinforce the strategic path forward.
+    
+Contents:
+    
+    Recap of the market opportunity within the chosen segments.
+        
+    Restatement of the critical strategic choice: who we are targeting and why we will win with them.
+        
+    A final statement on the value of this segmented approach for focusing resources and maximizing market impact.
+
+    **TOOL USE:**
+    Use `google_search` only if you need to clarify industry terminology, market categories, or recent developments that might affect the research approach. Do not research the actual content - that's for the next agent.
+
+    Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
+CRITICAL: EVERY SUBSECTION AND POINT IS ALLOWED TO BE A PARAGRAPH WITH 2-4 SENTENCES
     """,
     output_key="report_sections",
 )
 
 segmentation_researcher = LlmAgent(
-    model = config.search_model,
+    model=config.search_model,
     name="segmentation_researcher",
     description="Specialized segmentation research agent focusing on market segments, customer segmentation, and strategic analysis.",
     planner=BuiltInPlanner(
@@ -330,7 +579,7 @@ segmentation_researcher = LlmAgent(
 )
 
 segmentation_evaluator = LlmAgent(
-    model = config.critic_model,
+    model=config.critic_model,
     name="segmentation_evaluator",
     description="Evaluates segmentation research completeness and identifies gaps in segmentation analysis.",
     instruction=f"""
@@ -382,7 +631,7 @@ segmentation_evaluator = LlmAgent(
 )
 
 enhanced_segmentation_search = LlmAgent(
-    model = config.search_model,
+    model=config.search_model,
     name="enhanced_segmentation_search",
     description="Performs targeted follow-up searches to fill segmentation research gaps identified by the evaluator.",
     planner=BuiltInPlanner(
@@ -437,7 +686,7 @@ enhanced_segmentation_search = LlmAgent(
 )
 
 segmentation_report_composer = LlmAgent(
-    model = config.critic_model,
+    model=config.critic_model,
     name="segmentation_report_composer",
     include_contents="none",
     description="Composes comprehensive segmentation analysis reports with Wikipedia-style numbered citations.",
@@ -448,6 +697,7 @@ segmentation_report_composer = LlmAgent(
 
     ---
     ### INPUT DATA SOURCES
+    * Research Plan: `{research_plan}`
     * Research Findings: `{segmentation_research_findings}`
     * Citation Sources: `{citations}`
     * Report Structure: `{report_sections}`
@@ -457,10 +707,11 @@ segmentation_report_composer = LlmAgent(
 
     **1. Format Adherence:**
     - Follow the section structure provided in the Report Structure exactly.
-    - Use clear section headers and bullet points for readability.
+    - Use clear section headers and a combination of short paragraphs and bullet points for readability.
     - Include date ranges and data sources for all statistics.
     - Provide specific examples and figures where available.
     - Omit sections only if no relevant information is found.
+    - The subsections can be expanded into multiple small paragraphs rather than just one bullet point
 
     **2. Content Quality:**
     - Objectivity: Present both opportunities and challenges for each segment.
@@ -468,6 +719,8 @@ segmentation_report_composer = LlmAgent(
     - Recency: Emphasize recent data and developments (last 2-3 years).
     - Source Diversity: Include information from industry reports, news, and data sources.
     - Accuracy: Verify and cite all factual claims and figures.
+    - The subsections can be expanded into multiple small paragraphs rather than just one bullet point
+
 
     **3. Strategic Insights:**
     Each section should conclude with actionable insights:
@@ -478,6 +731,8 @@ segmentation_report_composer = LlmAgent(
     - Prioritization & Fit: Rationale for top segments and next steps.
     - Segmentation Framework: Guidelines for targeting each chosen segment.
     - Conclusions: Final recommendations and considerations.
+    - The subsections can be expanded into multiple small paragraphs rather than just one bullet point
+
 
     ---
     ### WIKIPEDIA-STYLE CITATION REQUIREMENTS
@@ -498,8 +753,18 @@ segmentation_report_composer = LlmAgent(
 
     Generate a complete Segmentation Analysis Report to inform strategic targeting decisions.
     """,
-    output_key="segmentation_intelligence_agent",
+    output_key="final_cited_report",
     after_agent_callback=wikipedia_citation_replacement_callback,
+)
+
+# NEW HTML REPORT COMPOSER AGENT
+segmentation_html_composer = LlmAgent(
+    model=config.critic_model,
+    name="segmentation_html_composer",
+    include_contents="none",
+    description="Composes a stylish HTML segmentation analysis report using the template format.",
+    instruction=SEG_TEMPLATE,
+    output_key="seg_html",
 )
 
 segmentation_research_pipeline = SequentialAgent(
@@ -518,31 +783,48 @@ segmentation_research_pipeline = SequentialAgent(
             ],
         ),
         segmentation_report_composer,
+        segmentation_html_composer,  # Added HTML composer after markdown report
     ],
 )
 
 segmentation_intelligence_agent = LlmAgent(
-    name="segmentation_intelligence_coordinator", 
-    model=config.worker_model,
-    description="Coordinates segmentation analysis by delegating to research pipeline.",
+    name="segmentation_intelligence_agent",
+    model=config.critic_model,
+    description="Specialized segmentation intelligence assistant that creates comprehensive segmentation analysis reports automatically.",
     instruction=f"""
-    You are a segmentation analysis coordinator. Your role is simple:
-    
-    1. Acknowledge the user's segmentation request
-    2. Immediately delegate to the segmentation research pipeline
-    3. Return the final report
-    
-    Do NOT ask for approval, confirmation, or additional details. 
-    Execute the analysis immediately upon receiving any product segmentation request.
-    
+    You are a specialized Segmentation Intelligence Assistant focused on creating strategic segmentation analyses for product planning.
+
+    **CORE MISSION:**
+    Convert any user request about a product into a systematic segmentation research plan and analysis, including:
+    - Market segment discovery and industry mapping
+    - Customer segment identification and profiling
+    - Segment attractiveness, competitive analysis, and prioritization
+    - Segmentation framework with targeting recommendations
+
+    **AUTOMATIC EXECUTION WORKFLOW:**
+    1. **Plan Generation:** Use `segmentation_plan_generator` to create a comprehensive research plan covering all core objectives.
+    2. **Immediate Execution:** Once the plan is generated, immediately delegate to `segmentation_research_pipeline` without waiting for user approval or input.
+
+    **RESEARCH FOCUS AREAS:**
+    - Segment Scope: market categories, customer types, geography
+    - Segment Analysis: size, growth, competition
+    - Customer Insights: needs, behaviors, decision factors
+    - Strategy: opportunities and targeting tactics
+
+    **OUTPUT EXPECTATIONS:**
+    The final result should be:
+    1. A detailed Segmentation Analysis Report (markdown) with Wikipedia-style numbered citations and actionable recommendations
+    2. A stylish HTML report using the professional template format for presentation purposes
+
+    **IMPORTANT:** Never ask for user approval, confirmation, or additional input after receiving the initial request. Generate the plan and immediately proceed with execution to deliver the complete analysis.
+
     Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
+
+    Remember: Plan -> Execute Immediately. Never wait for user input during the process.
     """,
-    sub_agents=[
-        SequentialAgent(
-            name="auto_segmentation_pipeline",
-            sub_agents=[segmentation_plan_generator, segmentation_research_pipeline]
-        )
-    ],
-    output_key="segmentation_intelligence_agent",  # This should match your final output key
+    sub_agents=[segmentation_research_pipeline],
+    tools=[AgentTool(segmentation_plan_generator)],
+    output_key="research_plan",
 )
+
 # root_agent = segmentation_intelligence_agent

@@ -1,3 +1,8 @@
+from google.adk.agents import LlmAgent
+from google.adk.models.lite_llm import LiteLlm
+
+from google.genai import types as genai_types
+from google.adk.models import Gemini
 import os
 from dataclasses import dataclass
 
@@ -24,9 +29,18 @@ class ResearchConfiguration:
         max_search_iterations (int): Maximum search iterations allowed.
     """
 
-    critic_model: str = "gemini-2.5-pro"
-    worker_model: str = "gemini-2.5-flash"
-    max_search_iterations: int = 5
+    # critic_model: str = "gemini-2.5-flash"
+    # worker_model: str = "gemini-2.5-flash-lite"
+    critic_model = LiteLlm(model="openai/gpt-5-nano")
+    worker_model = LiteLlm(model="openai/gpt-5-nano")
+    search_model = Gemini(
+            model="gemini-2.5-flash-lite",
+            retry_options=genai_types.HttpRetryOptions(
+            initial_delay=10,
+            attempts=3
+            )
+        )
+    max_search_iterations: int = 3
 
 
 config = ResearchConfiguration()

@@ -21,14 +21,20 @@ def create_blank_project(project_id: str):
         "project_id": project_id,
         "client_org_research": "",
         "prospect_research": "",
-        "market_segment": ""
+        "market_segment": "",
+        "target_org_research": "",
+        "client_org_research_html": "",
+        "market_context_html": "",
+        "prospect_research_html": "",
+        "market_segment_html": "",
+        "target_org_research_html": ""
     }
 
     collection.insert_one(document)
     print(f"New document created for project_id '{project_id}'.")
     return True 
 
-def update_project_report(project_id: str, report: str, report_type: str):
+def update_project_report(project_id: str, report: str, report_type: str, html_report: str = ""):
     """
     Updates the report field (report_type) in the project document with the given project_id.
     """
@@ -37,7 +43,12 @@ def update_project_report(project_id: str, report: str, report_type: str):
         "market_context",
         "prospect_research",
         "market_segment",
-        "target_org_research"
+        "target_org_research",
+        "client_org_research_html",
+        "market_context_html",
+        "prospect_research_html",
+        "market_segment_html",
+        "target_org_research_html"
     }
 
     if report_type not in allowed_fields:
@@ -53,7 +64,7 @@ def update_project_report(project_id: str, report: str, report_type: str):
 
     result = collection.update_one(
         {"project_id": project_id},
-        {"$set": {report_type: report}}
+        {"$set": {report_type: report, f"{report_type}_html":html_report}}
     )
 
     requests.put(f"https://stu.globalknowledgetech.com:8444/project/project-status-update/{project_id}/",headers = {'Content-Type': 'application/json'}, data = json.dumps({"sub_status": f"{report_type} updated"}))

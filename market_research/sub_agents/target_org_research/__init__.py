@@ -1,1 +1,1 @@
-from .target_org import sales_intelligence_agent
+from .target_research import sales_intelligence_agent

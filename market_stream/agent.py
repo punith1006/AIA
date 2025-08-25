@@ -6,8 +6,9 @@ from google.adk.agents.callback_context import CallbackContext
 
 from .tools.mongoupload import update_project_report, create_blank_project
 from .sub_agents.segmentation import segmentation_intelligence_agent
-from .sub_agents.client_org_research import organizational_intelligence_agent
+from .sub_agents.target_org_research import sales_intelligence_agent
 from .sub_agents.prospect_research import prospect_researcher
+from .sub_agents.market_context import market_intelligence_agent
 from .config import config
 
 # ----------------------------------------------------------------------
@@ -19,12 +20,14 @@ def store_segmentation_report(callback_context: CallbackContext):
         project_id = callback_context.state.get('project_id')
         project_id = project_id.replace('"','')
         segmentation_report = callback_context.state.get('segmentation_intelligence_agent')
-        
+        segmentation_html = callback_context.state.get("")
+
         if project_id and segmentation_report:
             update_project_report(
                 project_id=project_id,
                 report=segmentation_report,
-                report_type="market_segment"
+                report_type="market_segment",
+                html_report = "seg_html"
             )
             print(f"Segmentation report stored successfully for project {project_id}")
         else:
@@ -70,6 +73,29 @@ def store_prospect_report(callback_context: CallbackContext):
     except Exception as e:
         print(f"Error storing prospect research report: {e}")
 
+def store_context_report(callback_context: CallbackContext):
+    """Store prospect research report after prospect_researcher completes"""
+    try:
+        project_id = callback_context.state.get('project_id')
+        project_id = project_id.replace('"','')
+        context_report = callback_context.state.get('market_intelligence_agent')
+        context_html = callback_context.state.get("context_html")
+
+        if project_id and context_report:
+            update_project_report(
+                project_id=project_id,
+                report=context_report,
+                report_type="market_context",
+                html_report= context_html
+            )
+            print(f"Market context report stored successfully for project {project_id}")
+        else:
+            print(f"Failed to store Market context report - project_id: {project_id}, report exists: {bool(context_report)}")
+    except Exception as e:
+        print(f"Error storing Market context report: {e}")
+
+
+
 def extract_project_id(callback_context: CallbackContext):
     """Extract and store project_id from initial input for use by storage callbacks"""
     try:
@@ -95,13 +121,14 @@ def extract_project_id(callback_context: CallbackContext):
 # ----------------------------------------------------------------------
 # Ensure output_key is consistent for all imported sub-agents
 # ----------------------------------------------------------------------
+
 segmentation_intelligence_agent.output_key = "segmentation_intelligence_agent"
-organizational_intelligence_agent.output_key = "organizational_intelligence_agent"
 prospect_researcher.output_key = "prospect_researcher"
 
 # Add after-agent callbacks for storage
 segmentation_intelligence_agent.after_agent_callback = [store_segmentation_report]
 organizational_intelligence_agent.after_agent_callback = [store_organizational_report]
+market_intelligence_agent.after_agent_callback = [store_context_report]
 prospect_researcher.after_agent_callback = [store_prospect_report]
 
 # ----------------------------------------------------------------------
@@ -132,8 +159,9 @@ segmentation_prompt_builder = LlmAgent(
     model = config.worker_model,
     description="Generates JSON input for segmentation_intelligence_agent from user input.",
     instruction="""
-        Based on the user input, create a JSON object for market segmentation analysis.
+        Based on the user input and the market context report, create a JSON object for market segmentation analysis. ONLY USE MARKET CONTEXT REPORT FOR FILLING THE industry_market AND current_understanding FIELDS.
         
+        market context report: {market_intelligence_agent}
         Output ONLY a valid JSON object in the following format. Do not include any extra text or commentary.
         {
             "product_name": "Your Product Name Here",
@@ -181,6 +209,38 @@ org_prompt_builder = LlmAgent(
     output_key="org_agent_input"
 )
 
+market_context_prompt_builder = LlmAgent(
+    name="market_context_prompt_builder",
+    model = config.worker_model,
+    description="Generates JSON input for market_intelligence_agent using only user_input.",
+    instruction="""
+        Using user input, create a JSON object as the input prompt for market context research.
+        Output ONLY a valid JSON object:
+        {
+            "companies": [
+                {
+                    "name": "Company Name",
+                    "ticker_symbol": "TICK",
+                    "industry": "Industry mentioned or inferred from user input",
+                    "alternate_name": "Alternative company name if applicable",
+                    "website": "company website if known"
+                }
+            ],
+            "products": [
+                {
+                    "product_or_service": "Product name from user input",
+                    "product_type": "Product category inferred from user input",
+                    "product_link": ""
+                }
+            ]
+        }
+        
+        Incorporate insights from both the segmentation and organizational intelligence reports.
+    """,
+    output_key="market_context_input"
+)
+
+
 prospect_prompt_builder = LlmAgent(
     name="prospect_prompt_builder",
     model = config.worker_model,
@@ -189,7 +249,6 @@ prospect_prompt_builder = LlmAgent(
         Using the user input, segmentation report, and organizational report, create a JSON object for prospect research.
         
         Segmentation Report: {segmentation_intelligence_agent}
-        Organizational Report: {organizational_intelligence_agent}
         
         Output ONLY a valid JSON object:
         {
@@ -231,7 +290,7 @@ project_creator = LlmAgent(
 simplified_intelligence_agent = SequentialAgent(
     name="simplified_intelligence_agent",
     description="""
-        Runs a simplified intelligence analysis pipeline with automatic storage:
+        Runs a intelligence analysis pipeline with automatic storage:
         
         1. Analyze user input and extract project information
         2. Create blank project document in MongoDB
@@ -245,12 +304,14 @@ simplified_intelligence_agent = SequentialAgent(
     sub_agents=[
         input_analyzer,                         # Analyze input + extract project_id
         project_creator,                        # Create blank project in MongoDB
-        # org_prompt_builder,                     # Build org prompt  
-        # organizational_intelligence_agent,      # Execute org intelligence + auto-store
+        market_context_prompt_builder,
+        market_intelligence_agent,
         segmentation_prompt_builder,            # Build segmentation prompt
         segmentation_intelligence_agent,        # Execute segmentation + auto-store
-        # prospect_prompt_builder,                # Build prospect prompt
-        # prospect_researcher,                    # Execute prospect research + auto-store
+        # org_prompt_builder,                     # Build org prompt  
+        # organizational_intelligence_agent,      # Execute org intelligence + auto-store
+        prospect_prompt_builder,                # Build prospect prompt
+        prospect_researcher,                    # Execute prospect research + auto-store
     ]
 )
 

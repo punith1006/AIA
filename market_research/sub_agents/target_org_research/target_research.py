@@ -15,7 +15,7 @@ from google.genai import types as genai_types
 from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
-from .config import config
+from ...config import config
 
 
 # --- Structured Output Models ---
@@ -120,7 +120,7 @@ def citation_replacement_callback(
     callback_context: CallbackContext,
 ) -> genai_types.Content:
     """Replaces citation tags in a report with Wikipedia-style clickable numbered references."""
-    final_report = callback_context.state.get("final_cited_report", "")
+    final_report = callback_context.state.get("sales_intelligence_agent", "")
     sources = callback_context.state.get("sources", {})
 
     # Assign each short_id a numeric index
@@ -157,7 +157,7 @@ def citation_replacement_callback(
 
     processed_report += references
 
-    callback_context.state["final_report_with_citations"] = processed_report
+    callback_context.state["sales_intelligence_agent"] = processed_report
     return genai_types.Content(parts=[genai_types.Part(text=processed_report)])
 
 
@@ -186,13 +186,7 @@ class SalesEscalationChecker(BaseAgent):
 
 # --- ENHANCED AGENT DEFINITIONS ---
 sales_plan_generator = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
-            attempts=3
-        )
-    ),
+    model = config.search_model,
     name="sales_plan_generator",
     description="Generates comprehensive sales intelligence research plans for product-organization fit analysis.",
     instruction=f"""
@@ -294,13 +288,7 @@ sales_plan_generator = LlmAgent(
 )
 
 sales_section_planner = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
-            attempts=3
-        )
-    ),
+    model = config.worker_model,
     name="sales_section_planner",
     description="Creates a structured sales intelligence report outline following the standardized 9-section format.",
     instruction="""
@@ -393,13 +381,7 @@ sales_section_planner = LlmAgent(
 )
 
 sales_researcher = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
-            attempts=3
-        )
-    ),
+    model = config.search_model,
     name="sales_researcher",
     description="Specialized sales intelligence researcher focusing on product-organization fit analysis and competitive positioning.",
     planner=BuiltInPlanner(
@@ -511,13 +493,7 @@ sales_researcher = LlmAgent(
 )
 
 sales_evaluator = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
-            attempts=3
-        )
-    ),
+    model = config.critic_model,
     name="sales_evaluator",
     description="Evaluates sales intelligence research completeness and identifies gaps for product-organization fit analysis.",
     instruction=f"""
@@ -592,13 +568,7 @@ sales_evaluator = LlmAgent(
 )
 
 enhanced_sales_search = LlmAgent(
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
-            attempts=3
-        )
-    ),
+    model = config.search_model,
     name="enhanced_sales_search",
     description="Executes targeted follow-up searches to fill sales intelligence gaps identified by the evaluator.",
     planner=BuiltInPlanner(
@@ -654,13 +624,7 @@ enhanced_sales_search = LlmAgent(
 )
 
 sales_report_composer = LlmAgent(
-    model=Gemini(
-        model=config.critic_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
-            attempts=3
-        )
-    ),
+    model = config.critic_model,
     name="sales_report_composer",
     include_contents="none",
     description="Composes comprehensive sales intelligence reports following the standardized 9-section format with proper citations.",
@@ -736,8 +700,632 @@ sales_report_composer = LlmAgent(
 
     Generate a comprehensive sales intelligence report that enables immediate account-based selling execution.
     """,
-    output_key="final_cited_report",
+    output_key="sales_intelligence_agent",
     after_agent_callback=citation_replacement_callback,
+)
+
+html_report_generator = LlmAgent(
+    model=config.critic_model,
+    name="html_report_generator",
+    description="Converts markdown sales intelligence reports into professional HTML format with responsive design and interactive elements.",
+    instruction="""
+    You are a professional HTML report designer specializing in converting sales intelligence markdown reports into polished, interactive HTML documents.
+
+    **MISSION:** Transform the markdown sales intelligence report into a comprehensive HTML document following the standardized template structure with proper styling, responsive design, and professional presentation.
+
+    ---
+    ### INPUT DATA SOURCES
+    * Markdown Report: `{sales_intelligence_agent}` - The complete markdown sales intelligence report
+    * Citation Sources: `{sources}` - Source information for reference links
+
+    ---
+    ### HTML GENERATION REQUIREMENTS
+
+    **1. Document Structure:**
+    - Generate complete HTML document with proper DOCTYPE, head, and body
+    - Include embedded CSS for professional styling and responsive design
+    - Extract product/company names for dynamic title generation
+    - Use semantic HTML5 elements for accessibility
+
+    **2. Content Extraction and Conversion:**
+    - **Header**: Extract main product/company name for report title
+    - **Metadata**: Infer report type, focus area, and target organization from content
+    - **Table of Contents**: Generate with proper anchor links to all sections
+    - **Sections**: Convert all 9 standard sections from markdown to HTML
+    - **Citations**: Convert markdown citation references to proper HTML spans with citation class
+
+    **3. CSS Framework - Include Complete Stylesheet:**
+    ```css
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #3498db;
+        --accent-color: #2980b9;
+        --success-color: #27ae60;
+        --warning-color: #f39c12;
+        --danger-color: #e74c3c;
+        --light-color: #ecf0f1;
+        --dark-color: #2c3e50;
+        --text-color: #333;
+        --border-radius: 8px;
+        --box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        color: var(--text-color);
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .report-header {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        padding: 40px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .report-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+        opacity: 0.3;
+    }
+
+    .report-header h1 {
+        font-size: 2.5em;
+        font-weight: 700;
+        margin-bottom: 10px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .report-subtitle {
+        font-size: 1.1em;
+        opacity: 0.9;
+        position: relative;
+        z-index: 2;
+    }
+
+    .report-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        padding: 30px 40px;
+        background: var(--light-color);
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .report-meta div {
+        text-align: center;
+    }
+
+    .report-meta h4 {
+        color: var(--primary-color);
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .report-meta p {
+        font-size: 1.1em;
+        font-weight: 500;
+        color: var(--dark-color);
+    }
+
+    .content {
+        padding: 40px;
+    }
+
+    .toc {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: var(--border-radius);
+        padding: 30px;
+        margin-bottom: 40px;
+    }
+
+    .toc h3 {
+        color: var(--primary-color);
+        margin-bottom: 20px;
+        font-size: 1.3em;
+        border-bottom: 2px solid var(--secondary-color);
+        padding-bottom: 10px;
+    }
+
+    .toc-list {
+        list-style: none;
+        columns: 2;
+        column-gap: 30px;
+    }
+
+    .toc-list li {
+        margin-bottom: 8px;
+        break-inside: avoid;
+    }
+
+    .toc-list a {
+        text-decoration: none;
+        color: var(--accent-color);
+        font-weight: 500;
+        display: block;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+    }
+
+    .toc-list a:hover {
+        background: var(--secondary-color);
+        color: white;
+        transform: translateX(5px);
+    }
+
+    section {
+        margin-bottom: 50px;
+        scroll-margin-top: 20px;
+    }
+
+    section h2 {
+        color: var(--primary-color);
+        font-size: 2em;
+        margin-bottom: 25px;
+        padding-bottom: 10px;
+        border-bottom: 3px solid var(--secondary-color);
+        position: relative;
+    }
+
+    section h3 {
+        color: var(--dark-color);
+        font-size: 1.4em;
+        margin: 25px 0 15px 0;
+        font-weight: 600;
+    }
+
+    section h4 {
+        color: var(--accent-color);
+        font-size: 1.2em;
+        margin: 20px 0 10px 0;
+        font-weight: 600;
+    }
+
+    .data-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 25px 0;
+    }
+
+    .data-card {
+        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+        border: 1px solid #e9ecef;
+        border-radius: var(--border-radius);
+        padding: 20px;
+        box-shadow: var(--box-shadow);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .data-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .metric-label {
+        display: block;
+        font-size: 0.9em;
+        color: var(--secondary-color);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }
+
+    .metric-value {
+        font-size: 1.3em;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background: white;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: var(--box-shadow);
+    }
+
+    .data-table th {
+        background: var(--primary-color);
+        color: white;
+        padding: 15px 12px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .data-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e9ecef;
+        vertical-align: top;
+    }
+
+    .data-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+
+    .section-highlight {
+        background: linear-gradient(135deg, rgba(52, 152, 219, 0.1) 0%, rgba(41, 128, 185, 0.1) 100%);
+        border-left: 4px solid var(--secondary-color);
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    }
+
+    .risk-warning {
+        background: linear-gradient(135deg, rgba(231, 76, 60, 0.1) 0%, rgba(192, 57, 43, 0.1) 100%);
+        border-left: 4px solid var(--danger-color);
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    }
+
+    .competitive-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin: 25px 0;
+    }
+
+    .competitor-card {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: var(--border-radius);
+        padding: 20px;
+        box-shadow: var(--box-shadow);
+        transition: transform 0.3s ease;
+    }
+
+    .competitor-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    }
+
+    .competitor-name {
+        font-size: 1.2em;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 5px;
+    }
+
+    .competitor-focus {
+        font-style: italic;
+        color: var(--secondary-color);
+        margin-bottom: 10px;
+        font-size: 0.95em;
+    }
+
+    .stakeholder-map {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+    }
+
+    .stakeholder-item {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: var(--border-radius);
+        padding: 15px;
+        transition: background 0.3s ease;
+    }
+
+    .stakeholder-item:hover {
+        background: #e9ecef;
+    }
+
+    .stakeholder-item h4 {
+        color: var(--primary-color);
+        margin-bottom: 5px;
+        font-size: 1em;
+    }
+
+    .risk-matrix {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+    }
+
+    .risk-item {
+        padding: 15px;
+        border-radius: var(--border-radius);
+        font-weight: 500;
+        text-align: center;
+        border: 2px solid;
+        transition: transform 0.3s ease;
+    }
+
+    .risk-item:hover {
+        transform: scale(1.02);
+    }
+
+    .risk-high {
+        background: rgba(231, 76, 60, 0.1);
+        border-color: var(--danger-color);
+        color: var(--danger-color);
+    }
+
+    .risk-medium {
+        background: rgba(243, 156, 18, 0.1);
+        border-color: var(--warning-color);
+        color: var(--warning-color);
+    }
+
+    .risk-low {
+        background: rgba(39, 174, 96, 0.1);
+        border-color: var(--success-color);
+        color: var(--success-color);
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+        margin: 25px 0;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--secondary-color);
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -23px;
+        top: 5px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--secondary-color);
+        border: 3px solid white;
+        box-shadow: 0 0 0 3px var(--secondary-color);
+    }
+
+    .timeline-content {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: var(--border-radius);
+        padding: 20px;
+        box-shadow: var(--box-shadow);
+    }
+
+    .timeline-content h4 {
+        margin-bottom: 10px;
+        color: var(--primary-color);
+    }
+
+    .citation {
+        color: var(--secondary-color);
+        font-weight: 500;
+        font-size: 0.9em;
+    }
+
+    .references {
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        padding: 30px 40px;
+        margin-top: 40px;
+    }
+
+    .references h2 {
+        color: var(--primary-color);
+        margin-bottom: 20px;
+    }
+
+    .references ol {
+        padding-left: 0;
+    }
+
+    .references li {
+        margin-bottom: 10px;
+        padding: 10px;
+        background: white;
+        border-radius: var(--border-radius);
+        border: 1px solid #e9ecef;
+    }
+
+    .references a {
+        color: var(--accent-color);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .references a:hover {
+        text-decoration: underline;
+    }
+
+    footer {
+        text-align: center;
+        padding: 30px;
+        background: var(--primary-color);
+        color: white;
+        font-size: 0.9em;
+    }
+
+    footer p {
+        margin-bottom: 5px;
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            margin: 10px;
+            border-radius: 10px;
+        }
+        
+        .report-header {
+            padding: 30px 20px;
+        }
+        
+        .report-header h1 {
+            font-size: 2em;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .report-meta {
+            padding: 20px;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        
+        .toc-list {
+            columns: 1;
+        }
+        
+        .data-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .competitive-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .data-table {
+            font-size: 0.9em;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 8px 6px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        body {
+            padding: 10px;
+        }
+        
+        .report-header h1 {
+            font-size: 1.8em;
+        }
+        
+        .content {
+            padding: 15px;
+        }
+        
+        section h2 {
+            font-size: 1.6em;
+        }
+        
+        .data-table {
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+    }
+    ```
+
+    **4. Section Conversion Rules:**
+
+    **Executive Summary:**
+    - Extract purpose, scope, and key opportunities for data cards
+    - Convert bullet points to HTML lists with proper citation spans
+    - Place success factors in section-highlight div
+    - Place risks in risk-warning div
+
+    **Product Overview:**
+    - Extract product name and category for data cards
+    - Convert value propositions to structured lists
+    - Maintain all subsection structure from markdown
+
+    **Target Organization:**
+    - Extract company metrics (name, HQ, employees, revenue) for data cards
+    - Convert stakeholder information to stakeholder-map grid
+    - Create stakeholder-item divs for each person
+
+    **Fit Analysis:**
+    - Convert analysis tables to proper HTML tables with data-table class
+    - Extract fit scores and evidence for table rows
+    - Maintain cross-matrix structure
+
+    **Competitive Landscape:**
+    - Use competitive-grid for competitor layout
+    - Create competitor-card divs with competitor-name and competitor-focus elements
+
+    **Engagement Strategy:**
+    - Convert messaging themes to structured lists by stakeholder group
+    - Use timeline class for engagement sequence
+    - Create timeline-item divs with timeline-marker and timeline-content
+
+    **Risks & Red Flags:**
+    - Use risk-matrix with appropriate risk-level classes (risk-high, risk-medium, risk-low)
+    - Place detailed descriptions in risk-warning div
+
+    **Action Plan:**
+    - Maintain timeframe structure (Immediate, Medium-Term, Long-Term)
+    - Convert to HTML lists with proper citations
+
+    **5. Citation Processing:**
+    - Convert markdown citation patterns [1], [2], [1,2] to `<span class="citation">[number]</span>`
+    - Build references section with proper numbered list and links
+    - Ensure all citation numbers in content match reference list
+
+    **6. Responsive Design Features:**
+    - Mobile-responsive grid layouts
+    - Collapsing navigation for smaller screens  
+    - Horizontal scroll for tables on mobile
+    - Scalable typography and spacing
+
+    **CRITICAL SUCCESS FACTORS:**
+    - Complete HTML document with embedded CSS
+    - Professional visual hierarchy and typography
+    - Interactive elements (hover effects, smooth scrolling)
+    - Proper semantic HTML structure for accessibility
+    - Mobile-responsive design
+    - All markdown content converted accurately
+    - Citations properly formatted and linked
+
+    Generate a complete, standalone HTML document that transforms the markdown report into a professional, interactive sales intelligence presentation.
+    """,
+    output_key="target_html",
 )
 
 # --- UPDATED PIPELINE ---
@@ -757,19 +1345,14 @@ sales_intelligence_pipeline = SequentialAgent(
             ],
         ),
         sales_report_composer,
+        html_report_generator
     ],
 )
 
 # --- UPDATED MAIN AGENT ---
 sales_intelligence_agent = LlmAgent(
     name="sales_intelligence_agent",
-    model=Gemini(
-        model=config.worker_model,
-        retry_options=genai_types.HttpRetryOptions(
-            initial_delay=1,
-            attempts=3
-        )
-    ),
+    model = config.worker_model,
     description="Specialized sales intelligence assistant that creates comprehensive product-organization fit analysis reports for account-based selling.",
     instruction=f"""
     You are a specialized Sales Intelligence Assistant focused on comprehensive product-organization fit analysis for account-based selling and strategic sales planning.
@@ -841,4 +1424,4 @@ sales_intelligence_agent = LlmAgent(
     output_key="sales_research_plan",
 )
 
-root_agent = sales_intelligence_agent
+# root_agent = sales_intelligence_agent
