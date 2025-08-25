@@ -225,289 +225,187 @@ segmentation_section_planner = LlmAgent(
     model=config.worker_model,
     name="segmentation_section_planner",
     description="Creates a structured segmentation analysis report outline following a standardized format.",
-    instruction="""
+    instruction=f"""
     You are an expert market segmentation report architect. Using the segmentation research plan, create a structured markdown outline that follows the standardized Segmentation Analysis Report format.
 
     Your outline must include these core sections (omit sections only if explicitly noted in the research plan):
 
-    ### 1.. Executive Summary: The Strategic Landscape at a Glance
+    # Market Context Report Instructions for AI Agent
 
-Purpose:  A high-level, impactful summary of the entire analysis for executive readers.
-    
-Contents:
-    
-    Core Objective:  The fundamental purpose of this analysis (e.g., "To decode the market landscape for [Product Category] and identify the most viable customer segments for strategic focus.").
-        
-    The Market in Brief:  A single paragraph describing the total addressable market (TAM), its growth rate, and key overarching trends.
-        
-    Key Segments Identified:  A bulleted list of the 3-4 most critical segments discovered, with a one-sentence descriptor for each.
-        
-        *Example:  `The Enterprise Optimizer:`  _Large businesses seeking integrated, secure, and scalable solutions to automate core processes._
-            
-    Primary Target Recommendation:  A clear statement on which segment(s) present the greatest opportunity and why.
-        
-    Critical Strategic Insight:  The most important non-obvious finding from the analysis (e.g., "While the 'Budget-Conscious' segment is large, the 'Value-Seeking SMB' segment is more profitable and currently underserved by competitors.").
-        
+    Each section below specifies Purpose, Contents, and Length so the AI can generate consistent, high-quality output.  
 
----
+    ---
 
-### 2.. Market Overview & Macro-Environment (PESTLE Analysis)
+    ### 1. Executive Summary: The Strategic Landscape at a Glance  
 
-Purpose:  To paint a broad picture of the external forces shaping the entire market and its segments.
-    
-Contents:  A analytical narrative on how each factor influences market dynamics.
-    
-    Political:  Government regulations, trade policies, and political stability that impact market entry or product features (e.g., data privacy laws like GDPR, import tariffs).
-        
-    Economic:  Economic growth, inflation rates, disposable income, and investment climate that affect purchasing power and willingness to spend.
-        
-    Social:  Demographic shifts, cultural trends, consumer attitudes, and lifestyle changes (e.g., remote work adoption, sustainability concerns, health consciousness).
-        
-    Technological:  Key technological advancements, R&D focus, automation trends, and the rate of innovation that could disrupt or enable the market.
-        
-    Legal:  Industry-specific laws, copyright/patent landscapes, consumer protection laws, and licensing requirements.
-        
-    Environmental:  Environmental regulations, climate change implications, and the growing importance of eco-friendly and sustainable practices.
-        
-Display:  Table: PESTLE Impact Assessment
-    
-    _Columns:_  `Factor`,  `Current Trend`,  `Impact on Market (Positive/Negative/Neutral)`,  `Implication for Segmentation`.
-        
+    Purpose:  
+    Provide a concise, impactful synthesis of the report for executive readers. Should be written last but appear first.  
 
----
+    Contents:  
+    - Core Objective: One paragraph stating the overall purpose of the report.  
+    - The Market in Brief: A short overview of TAM, market growth rate, and top-level drivers.  
+    - Key Findings: 3–4 bullets summarizing the most critical insights from the report.  
+    - Opportunities & Threats Summary: One paragraph highlighting the most important opportunity and most critical risk.  
+    - Strategic Outlook: A concluding paragraph stating the overall market trajectory.  
 
-### 3.. Competitive Landscape: The Arena of Play
+    Length: 600–800 words (4–6 paragraphs plus 3–4 bullet points).  
 
-Purpose:  To identify key competitors and analyze their segment-specific strategies.
-    
-Contents:
-    
-    Key Competitors:  List of direct and indirect competitors.
-        
-    3.1 : Competitive Positioning Map:
-        
-        Display:  A perceptual map (a two-axis chart). Common axes include:
-            
-            Price (Low to High) vs. Quality (Basic to Premium)
-                
-            Innovation (Traditional to Cutting-Edge) vs. Service (Self-Serve to Full-Service)
-                
-            This visually shows where each competitor resides and reveals potential gaps in the market.
-                
-    Analysis of Competitor Segment Focus:  For each major competitor, hypothesize which segment(s) they are primarily targeting based on their marketing messaging, product features, and pricing. Identify which segments are overserved and underserved.
-        
-	3.1 Porter's Five Forces Analysis
-    
-    Purpose:  To assess the overall industry attractiveness and understand the root causes of competitive pressure.
-        
-    Contents:  A brief analysis of each force:
-        
-        1. Threat of New Entrants:  How easy is it for new companies to start up? (Barriers: capital, regulations, technology, brand loyalty).
-            
-        2. Bargaining Power of Buyers:  How much power do customers have to drive down prices? (Buyer concentration, price sensitivity, alternative options).
-            
-        3. Bargaining Power of Suppliers:  How much power do suppliers of key components have? (Number of suppliers, uniqueness of inputs).
-            
-        4. Threat of Substitute Products/Services:  What alternatives can customers use instead? (Direct, indirect, and generic substitutes).
-            
-        5. Intensity of Rivalry Among Existing Competitors:  How fierce is the current competition? (Number of competitors, market growth rate, fixed costs).
-            
-    Implication for Segments:  Conclude with how this industry analysis impacts segment attractiveness.  _Example: "High buyer power in the enterprise segment means competing on value, not price. Low threat of substitutes in the niche 'prosumer' segment makes it defensible."_
----
+    ---
 
-### 4.. Identification of Core Market Segments
+    ### 2. Market Overview: Framing the Environment  
 
-Purpose:  To define and present the distinct, meaningful segments within the total market.
-    
-Contents:  A high-level overview of all segments before deep diving.
-    
-Display:  Table: Market Segment Portfolio
-    
-    _Columns:_  `Segment Name`,  `Primary Defining Characteristics`,  `Estimated Segment Size (Units/$)`,  `Estimated Growth Rate (%)`,  `Key Need/Pain Point`.
-        
-    _This table provides an at-a-glance comparison of the potential of each segment._
-        
+    Purpose:  
+    Define the market, its boundaries, and its core drivers.  
 
----
+    Contents:  
+    - Industry Classification: Describe where the product sits within official industry codes and broader sector structures.  
+    - Product Category & Use Cases: Define the product category, with 3–5 example applications.  
+    - Market Drivers & Trends: List 5–7 major factors shaping demand and supply, each with 1–2 sentences of explanation.  
 
-### 5.. Deep-Dive Segment Profiles
+    Length: 800–1,000 words (5–7 paragraphs plus one bulleted list of drivers).  
 
-Purpose:  The heart of the report. To provide a rich, detailed profile of each potentially viable segment.  _This section should be repeated for each major segment (e.g., Segment A, B, C)._
-    
-    Segment A: [Evocative Name, e.g., "The Efficiency-Driven Enterprise"]
-        
-        5.A.1 Demographic & Firmographic Profile:
-            
-            _For B2C:_  Age, Income, Education, Occupation, Family Status.
-                
-            _For B2B:_  Company Size (Employees/Revenue), Industry, Geographic Location, Department/Title of Decision-Maker.
-                
-        5.A.2 Psychographic & Behavioral Profile:
-            
-            Goals & Motivations:  What are they trying to achieve? (e.g., increase productivity, reduce costs, enhance status, gain a competitive advantage).
-                
-            Pain Points & Frustrations:  What are their biggest challenges? (e.g., complex legacy systems, high operational costs, lack of integration, unreliable service).
-                
-            Values & Preferences:  What do they care about? (e.g., data security, excellent customer support, brand reputation, ease of use).
-                
-            Buying Behavior:  How do they buy? (Committee decision vs. individual, long sales cycle, high research intensity, price-sensitive).
-                
-        5.A.3 Media Consumption & Communication Channels:
-            
-            Where do they get information and spend their time? (e.g., LinkedIn, specific industry publications/websites, professional associations, podcasts, trade shows).
-                
-        5.A.4 Current Solution & Switching Triggers:
-            
-            What are they using now? What would cause them to look for a new solution? (e.g., contract renewal, business growth pain, a negative incident).
-                
+    ---
 
----
+    ### 3. Market Sizing: Defining the Opportunity  
 
-### 6.. Segment Evaluation & Attractiveness Analysis
+    Purpose:  
+    Quantify the size of the market at different levels (TAM, SAM, SOM) and show historical and projected growth.  
 
-Purpose:  To systematically evaluate and rank the segments to determine which are most worthy of pursuit.
-    
-Contents:  A rigorous assessment based on strategic criteria.
-    
-Display:  Table: 6.1 Segment Attractiveness Matrix
-    
-    _Rows:_  Each Segment (A, B, C...)
-        
-    _Columns:_  Evaluation Criteria (rated High/Medium/Low or on a 1-5 scale).
-        
-        Size:  The overall volume of the segment.
-            
-        Growth Potential:  The expected future growth rate.
-            
-        Profitability:  The potential for healthy margins (based on willingness to pay, cost to serve).
-            
-        Accessibility:  The ability to reach the segment with marketing messages and channels.
-            
-        Strategic Fit:  How well the segment's needs align with our company's strengths, capabilities, and brand.
-            
-        Competitive Intensity:  The number and strength of competitors already serving this segment.
-            
-Narrative Analysis:  Based on the matrix, provide commentary on which segments are most attractive and why. This is where you argue for your recommended targets.
+    Contents:  
+    - TAM (Total Addressable Market): One paragraph defining TAM, plus a table/figure citing at least 2 estimates.  
+    - SAM (Serviceable Available Market): One paragraph narrowing TAM to relevant scope, with calculations or reasoning.  
+    - SOM (Serviceable Obtainable Market): One paragraph explaining realistic market share capture, plus short/medium/long projections.  
+    - Growth Rates: One to two paragraphs describing historical CAGR and forecasted CAGR, with mention of inflection points.  
 
-6.2 Segment-Specific SWOT Analysis
-    
-    Purpose:  To identify the internal and external factors that are most relevant to successfully pursuing  _each key segment_. This moves from a general company SWOT to a targeted, segment-focused one.
-        
-    Contents:  For each  primary target segment  identified in your evaluation, create a dedicated SWOT.
-        
-    Display: Table: SWOT Analysis for Segment A: [Segment Name]
-        
-        Strengths (Internal):  What are our  company's specific strengths  that are highly valued by  _this segment_?
-            
-            _Example: "Our robust data security features directly address the top concern of the 'Security-Conscious Enterprise' segment."_
-                
-        Weaknesses (Internal):  What are our  company's specific weaknesses  that will hinder us with  _this segment_?
-            
-            *Example: "Our lack of 24/7 phone support is a critical weakness for the 'High-Touch SMB' segment that expects immediate help."*
-                
-        Opportunities (External):  What  external trends or market gaps  can we exploit to win  _this segment_?
-            
-            _Example: "A recent regulatory change (PESTLE) forces companies in this segment to seek new compliant solutions, which we offer."_
-                
-        Threats (External):  What  external challenges or competitor actions  specific to  _this segment_  do we face?
-            
-            _Example: "A key competitor is launching a stripped-down, low-cost version aimed directly at the 'Price-Sensitive Starter' segment."_
-                
-    Strategic Implications from SWOT:  Below the table, add a brief narrative on what the SWOT means.
-        
-        _How can we use our Strengths to capitalize on Opportunities? (SO Strategies)_
-            
-        _How can we use our Strengths to mitigate Threats? (ST Strategies)_
-            
-        _How can we fix our Weaknesses to pursue Opportunities? (WO Strategies)_
-            
-        _How can we avoid our Weaknesses being exposed by Threats? (WT Strategies)_    
+    Length: 1,000–1,200 words (7–9 paragraphs plus 1–2 tables/charts).  
 
----
+    ---
 
-### 7.. Targeting Strategy & Strategic Recommendations
+    ### 4. Customer Behavior & Adoption Dynamics: Understanding the Buyer  
 
-Purpose:  To synthesize the analysis into a clear strategic direction.
-    
-Contents:
-    
-    Recommended Targeting Strategy:
-        
-        Concentrated (Niche) Targeting:  Focusing on a single, primary segment.
-            
-        Differentiated (Multi-Segment) Targeting:  Pursuing two or more distinct segments with tailored strategies for each.
-            
-        Justification:  A clear argument for the chosen strategy based on the evaluation in Section 6.
-            
-    Recommended Primary & Secondary Targets:  Explicitly name the segments chosen as primary and secondary targets.
+    Purpose:  
+    Explain how customers research, decide, and adopt products, as well as barriers and loyalty factors.  
 
-	Strategic Growth Options (Ansoff Matrix)
+    Contents:  
+    - Buying Process: 2–3 paragraphs describing how buyers move from awareness → evaluation → purchase.  
+    - Decision Criteria: A bulleted list of the top 3–4 factors influencing purchase decisions.  
+    - Adoption Barriers: 2–3 paragraphs outlining 3–4 major barriers (e.g., cost, complexity).  
+    - Switching Costs & Loyalty: 1–2 paragraphs explaining retention and stickiness of adoption.  
 
-		Purpose:  To define the type of market growth strategy that aligns with the chosen segments.
-		    
-		Contents:  A brief analysis of which quadrant(s) of the matrix are most relevant.
-		    
-		    Market Penetration:  Selling more of existing products to the chosen segments.
-		        
-		    Product Development:  Developing new products for the chosen segments.
-		        
-		    Market Development:  Taking existing products into new, similar segments.
-		        
-		    Diversification:  Developing new products for new segments (high risk).
-		        
-		Display:  A simple 2x2 grid graphic of the Ansoff Matrix, with the recommended strategy circled.
-		    
-		Narrative:  _"Our recommended strategy is  Product Development  for the 'Enterprise' segment, as we need to add advanced API features to meet their specific needs, while pursuing  Market Penetration  in the 'SMB' segment with our current feature set."_ 
+    Length: 600–800 words (5–6 paragraphs plus 1 bulleted list).  
 
----
+    ---
 
-### 8.. Positioning & Value Proposition Development
+    ### 5. Market Maturity & Trends: Positioning the Market Lifecycle  
 
-Purpose:  To define how we will win the chosen segments by creating a unique and valuable place in the customer's mind.
-    
-Contents:  For each  _primary target segment_.
-    
-    Positioning Statement:
-        
-        "For [target segment], who [have this need], our [product/service] is a [category] that [provides this key benefit]. Unlike [primary alternative/competitor], we [unique differentiator]."
-            
-    Core Value Proposition:  A compelling, customer-centric statement that summarizes the tangible value delivered.
-        
-        _Example: "Not just accounting software; it's peace of mind and hours saved every week."_
-            
-    Messaging Pillars:  The 3-4 key themes that all communication to this segment should emphasize (e.g., "Security," "Ease of Use," "24/7 Expert Support").
-        
+    Purpose:  
+    Assess whether the market is early-stage, growing, mature, or declining, and highlight key trends.  
 
----
+    Contents:  
+    - Lifecycle Stage: 1–2 paragraphs positioning the market in its lifecycle.  
+    - Trends & Innovation Indicators: A bulleted list of 5–6 innovation signals (e.g., VC funding, patent activity).  
+    - Saturation Analysis: 1–2 paragraphs on growth rate vs. saturation.  
+    - Disruptors: 1–2 paragraphs on potential disruptions (technologies, policies, competitors).  
 
-### 9.. Marketing Mix Implications (The 4Ps)
+    Length: 600–800 words (5–6 paragraphs plus 1 bulleted list).  
 
-Purpose:  To translate the high-level strategy into actionable tactical domains.
-    
-Contents:  For each  _primary target segment_.
-    
-    Product:  What features, functionality, packaging, or branding should be emphasized, developed, or modified to better serve this segment?
-        
-    Price:  What pricing model (subscription, one-time, freemium), price point (premium, value), and discount structure is most appropriate?
-        
-    Place (Distribution):  Through which channels should the product be sold and delivered? (Direct sales, online marketplace, retail partners, value-added resellers).
-        
-    Promotion:  What specific marketing messages, channels (e.g., LinkedIn ads for B2B, Instagram influencers for B2C), and types of content (whitepapers, webinars, short-form video) will resonate most effectively?
-        
+    ---
 
----
+    ### 6. Geographic Market Analysis: Regional Opportunities  
 
-### 10.. Conclusion: Synthesis and Forward Look
+    Purpose:  
+    Compare market sizes, competitors, and opportunities across regions.  
 
-Purpose:  To summarize the analytical journey and reinforce the strategic path forward.
-    
-Contents:
-    
-    Recap of the market opportunity within the chosen segments.
-        
-    Restatement of the critical strategic choice: who we are targeting and why we will win with them.
-        
-    A final statement on the value of this segmented approach for focusing resources and maximizing market impact.
+    Contents:  
+    - Regional Market Sizes: A table comparing TAM/SAM by major regions, with a 1-paragraph explanation.  
+    - Regional Competitors: 2–3 paragraphs on local players and cultural/regulatory factors.  
+    - Opportunities & Challenges: 2–3 paragraphs outlining where expansion potential exists, and key barriers.  
+
+    Length: 600–800 words (5–6 paragraphs plus 1 table).  
+
+    ---
+
+    ### 7. Risk Analysis: Anticipating Headwinds  
+
+    Purpose:  
+    Identify operational, market, and external risks that could limit success.  
+
+    Contents:  
+    - Operational Risks: 1–2 paragraphs on supply chain, vendor reliance, or infrastructure challenges.  
+    - Market Risks: 1–2 paragraphs on competition, commoditization, or limited differentiation.  
+    - External Risks: 1–2 paragraphs on geopolitical, climate, or policy risks.  
+    - Risk Matrix (optional): A 2x2 or 3x3 matrix of likelihood vs. impact.  
+
+    Length: 400–600 words (3–4 paragraphs plus matrix if included).  
+
+    ---
+
+    ### 8. Channel & Distribution Analysis: Pathways to Market  
+
+    Purpose:  
+    Examine how products reach customers, how profitable channels are, and associated risks.  
+
+    Contents:  
+    - Channel Economics: 1–2 paragraphs comparing costs and margins of different channels.  
+    - Channel Evolution: 1–2 paragraphs on shifts (e.g., growth of e-commerce vs. physical retail).  
+    - Channel Risks: 1 paragraph describing dependencies on major distributors/platforms.  
+
+    Length: 400–600 words (3–4 paragraphs).  
+
+    ---
+
+    ### 9. Scenario Planning: Preparing for Multiple Futures  
+
+    Purpose:  
+    Anticipate different future market conditions and outline responses.  
+
+    Contents:  
+    - Three Scenarios: 3 short paragraphs describing Base Case, Optimistic Case, and Pessimistic Case.  
+    - Trigger Points: 1 paragraph identifying external events (e.g., regulatory changes, recessions, technological breakthroughs).  
+
+    Length: 400–500 words (4–5 paragraphs).  
+
+    ---
+
+    ### 10. Case Studies & Benchmarks: Learning from Analogs  
+
+    Purpose:  
+    Draw lessons from comparable markets, industries, or companies.  
+
+    Contents:  
+    - Comparable Markets: 1–2 paragraphs describing industries/regions with parallels.  
+    - Historical Analogues: 1–2 paragraphs describing past markets with similar dynamics.  
+    - Best Practice Case Studies: 2–3 bullet points summarizing how leading players succeeded.  
+
+    Length: 400–500 words (3–4 paragraphs plus 2–3 bullets).  
+
+    ---
+
+    ### 11. Stakeholder Mapping: Power and Influence  
+
+    Purpose:  
+    Identify which stakeholders (institutions, regulators, influencers) shape the market.  
+
+    Contents:  
+    - Institutions & Associations: 1–2 paragraphs listing industry bodies, regulators, NGOs.  
+    - Power Dynamics: 1–2 paragraphs describing how influence is distributed (e.g., regulatory capture, lobbying).  
+
+    Length: 300–400 words (2–3 paragraphs).  
+
+    ---
+
+    ### 12. Conclusions & Recommendations: Strategic Takeaways  
+
+    Purpose:  
+    Summarize key insights, identify opportunities/threats, and provide actionable next steps.  
+
+    Contents:  
+    - Opportunities & Threats: 3–4 bullet points highlighting the most critical opportunities and risks.  
+    - Strategic Recommendations: 2–3 paragraphs with clear, actionable steps for market positioning, partnerships, or entry strategy.  
+    - Data Gaps & Uncertainty: 1 paragraph identifying where evidence was weak and recommending areas for further research.  
+
+    Length: 500–700 words (3–4 paragraphs plus bullet points).  
+
 
     **TOOL USE:**
     Use `google_search` only if you need to clarify industry terminology, market categories, or recent developments that might affect the research approach. Do not research the actual content - that's for the next agent.
@@ -537,39 +435,66 @@ segmentation_researcher = LlmAgent(
 
     **EXECUTION METHODOLOGY:**
 
-    **Phase 1: Market Segment Discovery (execute ALL [RESEARCH] tasks first)**
-    Generate targeted search queries for:
-    - Industry taxonomies and segment definitions for the product category.
-    - Use cases and applications of the product by industry segment.
-    - Market segment breakdown by size, industry, or use case.
-    - Geographic variations in market segments.
+    **Phase 1: Market Definition & Structure (execute ALL [RESEARCH] tasks first)**  
+    Generate targeted search queries for:  
+    - Industry classifications (NAICS, ISIC, or regional codes) relevant to the product category.  
+    - Definitions of the product category and comparisons with adjacent categories.  
+    - Core use cases and top 3–5 industry applications.  
+    - Market segment breakdowns by industry vertical, product type, or customer use case.  
+    - Geographic variations in definitions and adoption patterns.  
 
-    **Phase 2: Customer Segment Identification**
-    Generate queries for:
-    - Customer demographics (age, role, company size, etc.) in each segment.
-    - Behavioral patterns and buying processes for customers.
-    - Needs, pain points, and priorities of customers per segment.
-    - Preferred channels and decision criteria by customer group.
+    ---
 
-    **Phase 3: Segment Attractiveness & Competition**
-    Generate queries for:
-    - Market size and growth estimates for each segment.
-    - Competitive landscape and key players targeting each segment.
-    - Market share or presence of leading vendors in segments.
-    - Barriers to entry and customer acquisition challenges.
+    **Phase 2: Market Size & Growth Dynamics**  
+    Generate queries for:  
+    - Global and regional TAM, SAM, and SOM estimates from credible sources (reports, analyst firms).  
+    - Historical market size and CAGR data (last 5–10 years).  
+    - Forecast growth projections (next 5–10 years) with drivers.  
+    - Key inflection points (technological, policy, or demand-side shifts).  
+    - Market maturity levels (early, growth, mature, declining) by geography or segment.  
 
-    **Phase 4: Strategic Fit & Prioritization (Deliverables)**
-    - Combine findings to score and rank segments.
-    - Identify product feature alignment with segment needs.
-    - Document resources or challenges for targeting segments.
-    - Prepare segment prioritization and recommendations.
+    ---
 
-    **QUALITY STANDARDS:**
-    - Accuracy: Verify important data with credible sources.
-    - Clarity: Present findings in clear bullet points.
-    - Completeness: Address all research objectives thoroughly.
-    - Timeliness: Use up-to-date information and note dates.
-    - Context: Provide relevant context for all claims.
+    **Phase 3: Customer & Adoption Behavior**  
+    Generate queries for:  
+    - Buyer demographics (roles, industries, company size, consumer groups).  
+    - Customer journey: awareness → evaluation → purchase → retention.  
+    - Decision-making criteria (price, performance, integration, trust, etc.).  
+    - Major adoption barriers (cost, complexity, regulation, awareness).  
+    - Switching costs, loyalty drivers, and stickiness of adoption.  
+
+    ---
+
+    **Phase 4: Competitive & Trend Landscape**  
+    Generate queries for:  
+    - Major global and regional competitors, their market shares, and business models.  
+    - Innovation signals: patents, funding rounds, R&D activity, new entrants.  
+    - Key industry trends shaping supply and demand (5–7 drivers, e.g., regulation, digitalization, sustainability).  
+    - Emerging technologies and potential disruptors (AI, automation, new policies, alternative solutions).  
+    - Channel and distribution evolution (e-commerce, partnerships, direct sales, etc.).  
+
+    ---
+
+    **Phase 5: Regional & Risk Analysis**  
+    Generate queries for:  
+    - Regional market sizes (TAM/SAM/SOM by North America, Europe, APAC, etc.).  
+    - Local competitors, regulatory factors, and cultural adoption differences.  
+    - Regional opportunities for expansion and barriers to entry.  
+    - Operational risks (supply chain, infrastructure, vendor reliance).  
+    - Market risks (commoditization, intense competition).  
+    - External risks (policy, geopolitics, climate, economic cycles).  
+
+    ---
+
+    **Phase 6: Benchmarks, Stakeholders & Strategy Inputs**  
+    Generate queries for:  
+    - Comparable industries or markets with similar adoption dynamics.  
+    - Case studies of leading players who succeeded (and how).  
+    - Historical analogues of markets that grew or collapsed under similar conditions.  
+    - Key stakeholders: regulators, industry associations, influencers, NGOs.  
+    - Evidence gaps in current data (uncertainties, inconsistent estimates).  
+    - Strategic recommendations from analyst firms or consultancies.  
+
 
     **OUTPUT:** The output should be the segmentation research findings suitable for report composition.
     """,

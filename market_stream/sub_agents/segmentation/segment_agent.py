@@ -15,7 +15,7 @@ from google.genai import types as genai_types
 from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
-from .config import config
+from ...config import config
 from .segmentation_report_template import SEG_TEMPLATE
 
 # --- Structured Output Models ---
