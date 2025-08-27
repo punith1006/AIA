@@ -26,17 +26,10 @@ def create_blank_project(client_id: str):
     print(f"New document created for client_id '{client_id}'.")
     return True 
 
-def update_project_report(client_id: str, report: str, report_type: str):
+def update_project_report(client_id: str, report_raw: str, report_html: str, report_type: str):
     """
     Updates the report field (report_type) in the project document with the given client_id.
     """
-    allowed_fields = {
-        "client_org_research"
-    }
-
-    if report_type not in allowed_fields:
-        raise ValueError(f"Invalid report_type. Must be one of: {', '.join(allowed_fields)}")
-
     mongo_uri = os.getenv("MONGO_DB_CONNECTOR")
     if not mongo_uri:
         raise ValueError("MONGO_DB_CONNECTOR environment variable is not set.")
@@ -44,12 +37,19 @@ def update_project_report(client_id: str, report: str, report_type: str):
     client = MongoClient(mongo_uri)
     db = client["sales_reports"]
     collection = db["org_reports"]
+    
+    # Build update document: set whichever fields are provided
+    update_doc = {}
+    if report_html is not None:
+        update_doc["html_report"] = report_html
+    if report_raw is not None:
+        update_doc["raw_report"] = report_raw
 
     result = collection.update_one(
         {"client_id": client_id},
-        {"$set": {report_type: report}}
+        {"$set": {report_type: update_doc}}
     )
-
+    print(result)
     requests.put(f"https://stu.globalknowledgetech.com:8444/project/project-status-update/{client_id}/",headers = {'Content-Type': 'application/json'}, data = json.dumps({"status": f"{report_type} updated"}))
 
     client.close()

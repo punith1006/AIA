@@ -1,3 +1,4 @@
+from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.agents import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
 
@@ -31,16 +32,19 @@ class ResearchConfiguration:
 
     # critic_model: str = "gemini-2.5-flash"
     # worker_model: str = "gemini-2.5-flash-lite"
-    critic_model = LiteLlm(model="openai/gpt-5-nano")
+    critic_model = LiteLlm(model="openai/gpt-5-mini")
     worker_model = LiteLlm(model="openai/gpt-5-nano")
     search_model = Gemini(
-            model="gemini-2.5-flash-lite",
+            model="gemini-2.5-flash",
             retry_options=genai_types.HttpRetryOptions(
-            initial_delay=10,
+            initial_delay=2,
             attempts=3
             )
         )
-    max_search_iterations: int = 3
+    run_config = RunConfig(
+        streaming_mode = StreamingMode.SSE
+    )
+    max_search_iterations: int = 2
 
 
 config = ResearchConfiguration()

@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Internal Organizational Capability Report</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #2980b9;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+            --text-color: #333;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: var(--box-shadow);
+        }
+
+        .report-header {
+            text-align: center;
+            border-bottom: 3px solid var(--primary-color);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .report-header h1 {
+            color: var(--primary-color);
+            font-size: 2.2em;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .report-subtitle {
+            font-size: 1.0em;
+            color: #7f8c8d;
+            margin-top: 8px;
+        }
+
+        .report-meta {
+            background: var(--light-color);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin: 20px 0;
+            border-left: 4px solid var(--secondary-color);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+            margin-top: 40px;
+            font-size: 1.6em;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 20px;
+            font-size: 1.2em;
+            border-left: 4px solid var(--secondary-color);
+            padding-left: 12px;
+        }
+
+        .content-section {
+            margin: 20px 0;
+        }
+
+        .sub-section {
+            margin: 12px 0;
+            padding-left: 16px;
+            border-left: 2px solid #e9ecef;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .data-card {
+            background: #f8f9fa;
+            padding: 14px;
+            border-radius: var(--border-radius);
+            border: 1px solid #dee2e6;
+            text-align: left;
+        }
+
+        .metric-value {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 8px 0;
+        }
+
+        .metric-label {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .risk-warning {
+            background: #fff5f5;
+            padding: 16px;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--danger-color);
+            margin: 16px 0;
+        }
+
+        .key-insights {
+            background: #f0fff4;
+            padding: 16px;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--success-color);
+            margin: 16px 0;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            box-shadow: 0 2px 3px rgba(0,0,0,0.05);
+        }
+
+        .data-table th, .data-table td {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .data-table th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
+        }
+
+        ul.bullet-points { padding-left: 18px; }
+        ul.bullet-points li { margin: 6px 0; }
+
+        .recommendation-box {
+            background: #e8f5e8;
+            padding: 14px;
+            border-radius: var(--border-radius);
+            border: 1px solid #d4edda;
+            margin: 12px 0;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 12px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 20px; }
+            .report-header h1 { font-size: 1.6em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="report-header">
+            <h1>Internal Organizational Capability Report</h1>
+            <div class="report-subtitle">Global Knowledge Technologies — Strategic Sales & Organizational Intelligence</div>
+        </div>
+
+        <div class="report-meta">
+            <div><strong>Report Generated:</strong> <span>August 25, 2025</span></div>
+            <div><strong>Subject:</strong> <span>Global Knowledge Technologies — Internal Analysis</span></div>
+            <div><strong>Confidentiality:</strong> <span>Strictly Internal Use</span></div>
+        </div>
+
+        <div class="table-of-contents">
+            <h2>Table of Contents</h2>
+            <ul class="bullet-points">
+                <li>1. Executive Summary</li>
+                <li>2. Company Overview</li>
+                <li>3. Financial Performance</li>
+                <li>4. Leadership & Organizational Structure</li>
+                <li>5. Market & Competitive Intelligence</li>
+                <li>6. Technology & Operational Profile</li>
+                <li>7. Strategic Developments</li>
+                <li>8. Risk Assessment</li>
+                <li>9. Sales Intelligence</li>
+                <li>10. Recommendations & Next Steps</li>
+                <li>11. Appendices — Sources</li>
+            </ul>
+        </div>
+
+        <!-- SECTION 1: EXECUTIVE SUMMARY -->
+        <h2 id="executive-summary">1. Executive Summary</h2>
+        <div class="content-section">
+            <h3>Organizational Snapshot</h3>
+            <div class="sub-section">
+                <p><strong>Legal name:</strong> Global Knowledge Technologies. <cite source="src-1" /></p>
+                <p><strong>Industry:</strong> IT Training / Professional Education / EdTech. <cite source="src-3" /></p>
+                <p><strong>Headquarters:</strong> Bengaluru, Karnataka, India. <cite source="src-1" /><cite source="src-2" /></p>
+                <p><strong>Founding date:</strong> Public records cite a primary establishment date of 2015; the company website also refers to activity "since 2002", indicating either earlier operations or rebranding. <cite source="src-1" /><cite source="src-3" /></p>
+            </div>
+
+            <h3>Key Financial & Scale Metrics</h3>
+            <div class="data-grid">
+                <div class="data-card">
+                    <div class="metric-label">Estimated Annual Revenue</div>
+                    <div class="metric-value">$11M – $100M (public estimate)</div>
+                    <div class="metric-label">Source: public aggregator estimate. <cite source="src-4" /></div>
+                </div>
+                <div class="data-card">
+                    <div class="metric-label">Employee Count (publicly reported)</div>
+                    <div class="metric-value">Reported ranges: 1–50 and 61–100 (discrepancy across sources)</div>
+                    <div class="metric-label">Conflicting public listings. <cite source="src-1" /><cite source="src-2" /></div>
+                </div>
+                <div class="data-card">
+                    <div class="metric-label">Funding / Valuation</div>
+                    <div class="metric-value">No public funding rounds or valuation disclosed</div>
+                    <div class="metric-label">Private partnership; limited public financial disclosure. <cite source="src-4" /></div>
+                </div>
+                <div class="data-card">
+                    <div class="metric-label">Official website</div>
+                    <div class="metric-value">http://www.globalknowledgetech.com</div>
+                    <div class="metric-label"><cite source="src-1" /></div>
+                </div>
+            </div>
+
+            <h3>Primary Business Model & Market Position</h3>
+            <div class="sub-section">
+                <p>Global Knowledge Technologies operates a hybrid B2B/B2C professional training model focused on enterprise corporate training, academic job-oriented courses, and vendor-aligned certification programs. <cite source="src-1" /><cite source="src-3" /></p>
+                <p>Key partnerships include vendor alignments with major technology firms used to validate course content and certification pathways (publicly cited partners include IBM, Microsoft, Tableau, Red Hat and others). <cite source="src-3" /><cite source="src-5" /></p>
+            </div>
+
+            <h3>High-level Sales Opportunity Assessment</h3>
+            <div class="key-insights">
+                <ul class="bullet-points">
+                    <li>Established vendor partnerships and a corporate training focus create direct GTM channels into enterprise L&D teams — a primary target for sales engagement. <cite source="src-3" /></li>
+                    <li>Demand drivers: corporate reskilling in AI/ML, vendor certification renewals, and upskilling initiatives present recurring contract opportunities. <cite source="src-3" /></li>
+                    <li>Constraints: private-company opacity on budgets and employee size increases due-diligence effort; confirm procurement cycles via pilot programs or partner introductions. <cite source="src-4" /></li>
+                </ul>
+            </div>
+
+            <h3>3–4 Key Strategic Insights</h3>
+            <div class="sub-section">
+                <ol>
+                    <li><strong>Credibility via vendor alliances:</strong> Being listed as a global IBM training provider and having other vendor relationships is a strong signal of content credibility and enterprise access. <cite source="src-5" /><cite source="src-3" /></li>
+                    <li><strong>Data & transparency gap:</strong> Lack of public financials and inconsistent employee counts create uncertainty about buying capacity and scale; sales outreach should validate budget and procurement cycles early. <cite source="src-4" /><cite source="src-1" /></li>
+                    <li><strong>IP/Product ambiguity:</strong> Public research did not confirm ownership of the "Master AI-FlashCards" product by Global Knowledge Technologies; treat any assumed product ownership as unverified until internal confirmation. <cite source="src-3" /><cite source="src-1" /></li>
+                    <li><strong>Practical GTM path:</strong> Pilot-based entry with 3–5 enterprise customers (L&D) and co-branded vendor programs are practical low-friction routes to validate product-market fit and build case studies. <cite source="src-3" /></li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- SECTION 2: COMPANY OVERVIEW -->
+        <h2 id="company-overview">2. Company Overview</h2>
+        <div class="content-section">
+            <h3>Business Model & Offerings</h3>
+            <div class="sub-section">
+                <p>Global Knowledge Technologies delivers instructor-led and curriculum-driven IT training, certification preparation, and customized corporate learning solutions targeted at both individual learners and enterprise clients. <cite source="src-1" /><cite source="src-3" /></p>
+                <ul class="bullet-points">
+                    <li>Corporate training engagements tailored to enterprise L&D needs. <cite source="src-1" /></li>
+                    <li>Academic/job-oriented training programs for students and individual professionals. <cite source="src-1" /></li>
+                    <li>Authorized vendor-aligned certification courses (IBM, Microsoft, Red Hat, Tableau, etc.). <cite source="src-3" /><cite source="src-5" /></li>
+                </ul>
+            </div>
+
+            <h3>Target Markets & Value Proposition</h3>
+            <div class="sub-section">
+                <p>Primary markets: Bengaluru-based enterprises, wider Indian corporate clients seeking reskilling, and individual learners pursuing IT certifications. <cite source="src-3" /></p>
+                <p>Value proposition: credible, vendor-certified training delivered with experienced instructors and aligned to industry-recognized certifications. <cite source="src-5" /></p>
+            </div>
+        </div>
+
+        <!-- SECTION 3: FINANCIAL PERFORMANCE -->
+        <h2 id="financial-health">3. Financial Performance</h2>
+        <div class="content-section">
+            <h3>Available Financial Signals</h3>
+            <div class="sub-section">
+                <p>Public financial information for Global Knowledge Technologies is limited: no verified audited statements or disclosed funding rounds were identified in public searches. <cite source="src-4" /></p>
+                <p>Aggregated public estimates indicate an annual revenue range of approximately $11M–$100M; treat this as a broad estimate rather than audited data. <cite source="src-4" /></p>
+            </div>
+
+            <h3>Financial Metrics (publicly visible)</h3>
+            <div class="data-grid">
+                <div class="data-card">
+                    <div class="metric-label">Estimated Revenue (public aggregator)</div>
+                    <div class="metric-value">$11M – $100M</div>
+                    <div class="metric-label"><cite source="src-4" /></div>
+                </div>
+                <div class="data-card">
+                    <div class="metric-label">Funding</div>
+                    <div class="metric-value">No public funding rounds identified</div>
+                    <div class="metric-label"><cite source="src-4" /></div>
+                </div>
+                <div class="data-card">
+                    <div class="metric-label">Profitability / Margins</div>
+                    <div class="metric-value">Not publicly disclosed</div>
+                    <div class="metric-label">Requires internal access for assessment. <cite source="src-4" /></div>
+                </div>
+                <div class="data-card">
+                    <div class="metric-label">Growth Signals</div>
+                    <div class="metric-value">Course updates and ongoing partnerships indicate continuity; quantitative trend data not public</div>
+                    <div class="metric-label"><cite source="src-3" /></div>
+                </div>
+            </div>
+
+            <h3>Implications for Sales & Partnerships</h3>
+            <div class="sub-section">
+                <ul class="bullet-points">
+                    <li>Budget validation is a priority: public opacity implies sales engagements should include early discovery on procurement cycles, annual L&D budgets, and contract lengths. <cite source="src-4" /></li>
+                    <li>Partnership leverage: vendor-certified status (e.g., IBM training provider) creates co-selling and co-marketing pathways to reach enterprise accounts. <cite source="src-5" /></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SECTION 4: LEADERSHIP & ORGANIZATIONAL STRUCTURE -->
+        <h2 id="leadership">4. Leadership & Organizational Structure</h2>
+        <div class="content-section">
+            <h3>Identified Executives & Roles</h3>
+            <div class="sub-section">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Name</th><th>Title (public listing)</th><th>Notes / Relevance to Sales</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Lakshmi Sendhil</td>
+                            <td>Co-Founder</td>
+                            <td>Founding leadership; primary strategic contact for partnership/vision-level discussions. <cite source="src-1" /></td>
+                        </tr>
+                        <tr>
+                            <td>Mahesh Thanki</td>
+                            <td>Head IT and Digital</td>
+                            <td>Responsible for digital initiatives and training delivery platforms — key technical contact for integrations. <cite source="src-2" /></td>
+                        </tr>
+                        <tr>
+                            <td>Preethi N</td>
+                            <td>Program Manager</td>
+                            <td>Operational lead for course delivery; key contact for pilots and program logistics. <cite source="src-2" /></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Organizational Notes</h3>
+            <div class="sub-section">
+                <p>Public sources indicate a lean-to-mid sized organization with inconsistent employee counts across listings (1–50 vs. 61–100). This requires confirmation during account qualification to determine internal capacity for pilots and enterprise rollouts. <cite source="src-1" /><cite source="src-2" /></p>
+            </div>
+        </div>
+
+        <!-- SECTION 5: MARKET & COMPETITIVE INTELLIGENCE -->
+        <h2 id="market-intel">5. Market & Competitive Intelligence</h2>
+        <div class="content-section">
+            <h3>Competitive Landscape</h3>
+            <div class="sub-section">
+                <p>Global Knowledge Technologies competes in a fragmented Indian IT training market that includes local training institutes and global EdTech platforms (examples in public results: SSI Computer Education, Disha Computer Institute, Koenig Solutions) as well as digital-first platforms (Coursera, Udemy, edX). <cite source="src-6" /><cite source="src-3" /></p>
+            </div>
+
+            <h3>Positioning & Differentiation</h3>
+            <div class="sub-section">
+                <ul class="bullet-points">
+                    <li>Vendor alignment (IBM, Microsoft, Red Hat, Tableau) provides differentiation via authorized content and certification support. <cite source="src-3" /><cite source="src-5" /></li>
+                    <li>Physical training presence in Bengaluru and enterprise relationships support in-person delivery and corporate program management. <cite source="src-3" /></li>
+                </ul>
+            </div>
+
+            <h3>Market Dynamics</h3>
+            <div class="sub-section">
+                <p>Demand drivers include corporate reskilling initiatives, rapid adoption of AI/ML in enterprise workflows, and continuous vendor certification needs — all favorable to an established training provider with vendor cred. <cite source="src-3" /></p>
+            </div>
+        </div>
+
+        <!-- SECTION 6: TECHNOLOGY & OPERATIONAL PROFILE -->
+        <h2 id="tech-ops">6. Technology & Operational Profile</h2>
+        <div class="content-section">
+            <h3>Technology Stack & Delivery Platforms</h3>
+            <div class="sub-section">
+                <p>Public signals indicate GKT operates curriculum and delivery infrastructure consistent with LMS and virtual lab usage required to deliver vendor-certified training; specific platform vendors (LMS names) are not publicly listed. <cite source="src-3" /></p>
+            </div>
+
+            <h3>Operational Capability</h3>
+            <div class="sub-section">
+                <p>The company’s role as an authorized vendor training partner implies established QA and trainer certification processes to meet vendor standards. <cite source="src-5" /></p>
+            </div>
+        </div>
+
+        <!-- SECTION 7: STRATEGIC DEVELOPMENTS -->
+        <h2 id="developments">7. Strategic Developments</h2>
+        <div class="content-section">
+            <h3>Recent Activity (last 12–18 months)</h3>
+            <div class="sub-section">
+                <p>Public information indicates ongoing emphasis on AI/ML and updated course offerings; no public record of major acquisitions or product launches beyond course updates. <cite source="src-3" /></p>
+            </div>
+
+            <h3>Partnerships & Alliances</h3>
+            <div class="sub-section">
+                <p>Notable publicly cited partner relationships include IBM (listed as one of their global training providers), Microsoft, Tableau and Red Hat — valuable for co-selling and enterprise trust. <cite source="src-5" /><cite source="src-3" /></p>
+            </div>
+        </div>
+
+        <!-- SECTION 8: RISK ASSESSMENT -->
+        <h2 id="risk-assessment">8. Risk Assessment</h2>
+        <div class="content-section">
+            <div class="risk-warning">
+                <h3>Primary Risks</h3>
+                <ul class="bullet-points">
+                    <li><strong>IP/Product Ownership Ambiguity:</strong> Public research did not confirm that Global Knowledge Technologies owns or operates the "Master AI-FlashCards" Leitner-based product; this ambiguity represents legal and GTM risk if product claims are made without verification. <cite source="src-3" /><cite source="src-1" /></li>
+                    <li><strong>Limited Financial Transparency:</strong> Lack of public financial statements and conflicting employee counts complicates evaluation of buying power and delivery capacity. <cite source="src-4" /><cite source="src-1" /></li>
+                    <li><strong>Competitive & Market Risk:</strong> Highly fragmented training market and digital EdTech platforms create price and feature pressure. <cite source="src-6" /></li>
+                    <li><strong>Operational Scalability:</strong> If heavy reliance exists on in-person or physical delivery, scaling to large enterprise deployments could require additional investment. <cite source="src-3" /></li>
+                </ul>
+            </div>
+
+            <h3>Mitigations</h3>
+            <div class="sub-section">
+                <ul class="bullet-points">
+                    <li>Confirm IP ownership and licensing via direct inquiry or contractual review before co-marketing or claims about product ownership. <cite source="src-3" /></li>
+                    <li>Use pilot/POCs to test capacity and ensure supply-chain resilience for any physical training materials. <cite source="src-3" /></li>
+                    <li>Negotiate phased payment and delivery terms tied to performance milestones to reduce financial exposure. (Analyst recommendation — internal)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SECTION 9: SALES INTELLIGENCE -->
+        <h2 id="sales-intel">9. Sales Intelligence</h2>
+        <div class="content-section">
+            <h3>Buying Signals & Opportunity Indicators</h3>
+            <div class="key-insights">
+                <ul class="bullet-points">
+                    <li>Vendor-aligned training status (IBM, Microsoft, Red Hat) signals existing procurement relationships with enterprise buying groups and L&D budgets that renew periodically. <cite source="src-5" /></li>
+                    <li>Course updates and continued partnership promotion suggest active pursuit of enterprise contracts rather than wind-down. <cite source="src-3" /></li>
+                    <li>Public reviews & local presence in Bengaluru indicate a reachable regional reputation that can be leveraged for pilot programs with nearby enterprises. <cite source="src-6" /></li>
+                </ul>
+            </div>
+
+            <h3>Decision-Maker Mapping & Outreach Recommendations</h3>
+            <div class="sub-section">
+                <ul class="bullet-points">
+                    <li>Initial outreach targets:
+                        <ul>
+                            <li>Strategic / Founding leadership (Lakshmi Sendhil) for partnership / licensing discussions. <cite source="src-1" /></li>
+                            <li>Head IT & Digital (Mahesh Thanki) for technical integrations, LMS or digital companion discussions. <cite source="src-2" /></li>
+                            <li>Program Manager (Preethi N) for pilots and operational coordination. <cite source="src-2" /></li>
+                        </ul>
+                    </li>
+                    <li>Use a pilot-first approach: propose a low-risk, time-boxed pilot for an enterprise L&D cohort (30–90 days) to demonstrate measurable retention improvements and collect ROI metrics. <cite source="src-3" /></li>
+                    <li>Confirm procurement cycles, contract lengths, and vendor-preferred procurement channels during initial discovery calls (to surface budget windows). <cite source="src-4" /></li>
+                </ul>
+            </div>
+
+            <h3>Budget & Procurement Signals</h3>
+            <div class="sub-section">
+                <p>Public data does not disclose budget levels; rely on sales qualification to determine available L&D spend. Vendor-aligned training providers typically operate on multi-year vendor contracts and per-seat/instructor-led pricing models — use vendor program references to frame commercial terms. <cite source="src-4" /><cite source="src-5" /></p>
+            </div>
+        </div>
+
+        <!-- SECTION 10: RECOMMENDATIONS & NEXT STEPS -->
+        <h2 id="recommendations">10. Recommendations & Next Steps</h2>
+        <div class="content-section">
+            <h3>Priority Actions (0–90 days)</h3>
+            <div class="recommendation-box">
+                <h4>1) Immediate IP & Ownership Verification</h4>
+                <div>
+                    - Contact corporate contacts (founder/leadership) to confirm whether Global Knowledge Technologies owns, licenses, distributes, or endorses "Master AI-FlashCards". <cite source="src-3" /></div>
+            </div>
+
+            <div class="recommendation-box">
+                <h4>2) Discovery & Pilot Offer</h4>
+                <div>
+                    - Propose a 30–90 day pilot with defined learning metrics and KPI reporting (retention, assessment uplift) to a target enterprise client to validate efficacy and commercialization model. <cite source="src-3" /></div>
+            </div>
+
+            <div class="recommendation-box">
+                <h4>3) Procurement & Budget Mapping</h4>
+                <div>
+                    - During pilot qualification, obtain procurement cycle dates, L&D budget owner contacts, and preferred contracting templates (vendor-approved terms). <cite source="src-4" /></div>
+            </div>
+
+            <div class="recommendation-box">
+                <h4>4) Leverage Vendor Partnerships</h4>
+                <div>
+                    - Use GKT's IBM/Microsoft/Red Hat relationships as co-selling levers for enterprise introductions and credibility. Structure co-branded pilot proposals where appropriate. <cite source="src-5" /></div>
+            </div>
+
+            <h3>Medium-term (90–270 days)</h3>
+            <div class="sub-section">
+                <ul class="bullet-points">
+                    <li>If IP is owned/accessible: develop a combined physical + digital companion offering (LMS integration or companion app) to increase scalability and measurement capability. <cite source="src-3" /></li>
+                    <li>Collect case studies and ROI outcomes from pilots to build sales collateral and unlock larger enterprise contracts. <cite source="src-3" /></li>
+                    <li>Negotiate phased commercial terms tied to adoption milestones and renewal triggers to protect margins and ensure predictable revenue. (Internal recommendation)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SECTION 11: APPENDICES -->
+        <h2 id="appendices">11. Appendices — Sources & Notes</h2>
+        <div class="content-section">
+            <h3>Appendix A: Key Data Summary</h3>
+            <ul class="bullet-points">
+                <li>Organization: Global Knowledge Technologies. <cite source="src-1" /></li>
+                <li>Website: http://www.globalknowledgetech.com. <cite source="src-1" /></li>
+                <li>Headquarters: Bengaluru, Karnataka, India. <cite source="src-1" /><cite source="src-2" /></li>
+                <li>Founding date: Publicly cited as 2015; company mentions activity "since 2002". <cite source="src-1" /><cite source="src-3" /></li>
+                <li>Employee count: Conflicting public ranges (1–50; 61–100). <cite source="src-1" /><cite source="src-2" /></li>
+                <li>Estimated revenue: $11M–$100M (public aggregator estimate). <cite source="src-4" /></li>
+                <li>Key executives identified: Lakshmi Sendhil (Co-Founder), Mahesh Thanki (Head IT & Digital), Preethi N (Program Manager). <cite source="src-1" /><cite source="src-2" /></li>
+                <li>Core business: IT training, certification, and corporate learning services. <cite source="src-3" /></li>
+                <li>Master AI-FlashCards: No public association between product and Global Knowledge Technologies confirmed in reviewed sources; ownership unverified. <cite source="src-3" /><cite source="src-1" /></li>
+            </ul>
+
+            <h3>Appendix B: Source Registry (representative)</h3>
+            <p>Primary publicly referenced sources used to compile this report (representative):</p>
+            <ul class="bullet-points">
+                <li>YourStory / company profile entries. <cite source="src-1" /></li>
+                <li>SalezShark contact and company listings. <cite source="src-2" /></li>
+                <li>Official company website: globalknowledgetech.com. <cite source="src-3" /></li>
+                <li>Public aggregator / revenue estimate listings. <cite source="src-4" /></li>
+                <li>Justdial reviews and local reputation signals. <cite source="src-6" /></li>
+                <li>Red Hat training partner listings and partner pages. <cite source="src-7" /></li>
+                <li>Miscellaneous local partner mentions (college partner pages). <cite source="src-9" /></li>
+                <li>Initial time-of-day search used during verification steps (not a company source). <cite source="src-8" /></li>
+            </ul>
+
+            <h3>Appendix C: Data Confidence & Limitations</h3>
+            <div class="sub-section">
+                <ul class="bullet-points">
+                    <li>Data confidence is limited by the private nature of the entity: public financials and formal corporate filings were not located. <cite source="src-4" /></li>
+                    <li>Employee counts and founding date reflect conflicting public entries; recommend direct confirmation during outreach. <cite source="src-1" /><cite source="src-3" /></li>
+                    <li>IP ownership of "Master AI-FlashCards" could not be substantiated from publicly available sources; legal/IP confirmation is required before any commercial statements or partnership claims. <cite source="src-3" /></li>
+                </ul>
+            </div>
+        </div>
+
+        <footer>
+            <p>© 2025 Global Knowledge Technologies — Internal Capability Report. Confidential and Proprietary.</p>
+        </footer>
+    </div>
+</body>
+</html>

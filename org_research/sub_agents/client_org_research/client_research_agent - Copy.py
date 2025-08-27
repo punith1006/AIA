@@ -16,7 +16,6 @@ from google.adk.models import Gemini
 from pydantic import BaseModel, Field
 
 from ...config import config
-from .org_report_template import ORG_TEMPLATE
 
 # --- Structured Output Models ---
 class SearchQuery(BaseModel):
@@ -617,6 +616,16 @@ organizational_plan_generator = LlmAgent(
     tools=[google_search],
 )
 
+# from .org_report_template import TEMPLATE
+
+# organizational_section_planner = LlmAgent(
+#     model=config.worker_model,
+#     name="organizational_section_planner",
+#     description="Creates detailed HTML report structure following the standardized organizational intelligence format.",
+#     instruction=TEMPLATE,
+#     output_key="report_sections",
+# )
+
 organizational_section_planner = LlmAgent(
     model=config.worker_model,
     name="organizational_section_planner",
@@ -925,8 +934,8 @@ organizational_evaluator = LlmAgent(
     - Risk assessment and due diligence factors (5 pts)
 
     **GRADING STANDARDS:**
-    - **PASS (55+ points):** Research meets professional intelligence standards
-    - **FAIL (<55 points):** Significant gaps requiring additional investigation
+    - **PASS (75+ points):** Research meets professional intelligence standards
+    - **FAIL (<75 points):** Significant gaps requiring additional investigation
 
     **CRITICAL SUCCESS FACTORS:**
     - Minimum 3 different source types represented
@@ -1150,16 +1159,6 @@ organizational_report_composer = LlmAgent(
     after_agent_callback=citation_replacement_callback,
 )
 
-# NEW HTML REPORT COMPOSER AGENT
-org_html_composer = LlmAgent(
-    model=config.critic_model,
-    name="client_org_html_composer",
-    include_contents="none",
-    description="Composes a stylish HTML client_organization analysis report using the template format.",
-    instruction=ORG_TEMPLATE,
-    output_key="org_html",
-)
-
 # --- Enhanced Loop Control Agent ---
 class EscalationChecker(BaseAgent):
     """Enhanced escalation checker with better evaluation detection and safety controls."""
@@ -1257,95 +1256,3 @@ class EscalationChecker(BaseAgent):
             logging.info(f"[{self.name}] Research needs improvement (grade: {grade_found}). "
                         f"Continuing loop iteration {loop_counter}.")
             yield Event(author=self.name)
-
-# --- ENHANCED PIPELINE ASSEMBLY ---
-organizational_research_pipeline = SequentialAgent(
-    name="organizational_research_pipeline",
-    description="Comprehensive organizational intelligence research pipeline with quality assurance loop and HTML report generation.",
-    sub_agents=[
-        organizational_section_planner,
-        organizational_researcher,
-        LoopAgent(
-            name="quality_assurance_loop",
-            max_iterations=3,  # Allow up to 3 iterations for quality improvement
-            sub_agents=[
-                organizational_evaluator,
-                EscalationChecker(name="escalation_checker"),
-                enhanced_organizational_search,
-            ],
-        ),
-        organizational_report_composer,
-        org_html_composer
-    ],
-)
-
-# --- MAIN ORGANIZATIONAL INTELLIGENCE AGENT ---
-organizational_intelligence_agent = LlmAgent(
-    name="organizational_intelligence_agent",
-    model=config.worker_model,
-    description="Advanced organizational intelligence system creating comprehensive reports for strategic sales intelligence.",
-    instruction=f"""
-    You are an advanced Organizational Intelligence System specializing in comprehensive company research and professional report generation for strategic sales and business development.
-
-    **CORE MISSION:**
-    Transform any organizational research request into a systematic intelligence gathering operation that produces a professional, citation-rich report.
-
-    **OPERATIONAL PROTOCOL:**
-    
-    **Step 1: REQUEST ANALYSIS**
-    - Parse user request to identify target organization(s)
-    - Determine research scope and specific intelligence requirements
-    - Assess any special focus areas or constraints
-
-    **Step 2: STRATEGIC PLANNING**
-    - **MANDATORY:** Use `organizational_plan_generator` to create comprehensive research strategy
-    - Never attempt direct research without a systematic plan
-    - Ensure plan covers all critical business intelligence areas
-
-    **Step 3: RESEARCH EXECUTION**
-    - Delegate complete research execution to `organizational_research_pipeline`
-    - Monitor for quality assurance loop execution
-    - Ensure comprehensive data collection across all research phases
-
-    **RESEARCH INTELLIGENCE FOCUS:**
-    
-    *Strategic Sales Intelligence:*
-    - Decision-maker identification and contact mapping
-    - Buying signal detection and opportunity timing
-    - Budget capacity and financial health assessment
-    - Competitive positioning and differentiation analysis
-
-    *Comprehensive Business Intelligence:*
-    - Corporate structure and leadership analysis
-    - Financial performance and market position
-    - Technology infrastructure and innovation focus
-    - Risk assessment and due diligence factors
-
-    *Market & Competitive Analysis:*
-    - Industry positioning and market share data
-    - Competitive landscape and threat assessment
-    - Strategic partnerships and alliance networks
-    - Recent developments and future strategic direction
-
-    **OUTPUT SPECIFICATIONS:**
-    - Professional report with Wikipedia-style citations
-    - Comprehensive coverage of all business intelligence areas
-    - Sales-ready insights and strategic recommendations
-    - Risk assessment and opportunity analysis
-    - Executive summary with key strategic insights
-
-    **QUALITY STANDARDS:**
-    - Multi-source verification for critical facts
-    - Recent information prioritized (12-18 months)
-    - Both positive and negative aspects included
-    - Professional presentation with proper citations
-    - Actionable intelligence for sales strategy
-
-    Current date: {datetime.datetime.now().strftime("%Y-%m-%d")}
-
-    **REMEMBER:** Always begin with strategic planning, then execute through the comprehensive research pipeline.
-    """,
-    sub_agents=[organizational_research_pipeline],
-    tools=[AgentTool(organizational_plan_generator)],
-    output_key="organizational_intelligence_system",
-)

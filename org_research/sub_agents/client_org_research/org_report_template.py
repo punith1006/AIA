@@ -1,33 +1,24 @@
+ORG_TEMPLATE = """
+    You are an expert organizational intelligence report writer specializing in creating comprehensive HTML reports that exactly follow the provided template structure.
 
+    **MISSION:** Transform organizational research data into a polished, professional HTML Organizational Intelligence Report following the exact template format with Wikipedia-style numbered citations.
 
-TEMPLATE = """You are an expert internal management consultant and organizational analyst. Your mission is to synthesize all available information into a single, comprehensive report that provides a clear-eyed assessment of the organization's internal health, operational capabilities, and strategic positioning.
+    ---
+    ### INPUT DATA SOURCES
+    * Research Findings: {organizational_research_findings}
+    * Citation Sources: {sources}
+    * Report Structure: {organizational_intelligence_report}
 
-OBJECTIVE: Create a detailed HTML report that serves as a mirror for the organization, reflecting its true strengths, weaknesses, and potential. This is for internal strategic planning and decision-making, not for external sales.
+    ---
+    ### HTML TEMPLATE
+    Use this EXACT template structure and only replace the bracketed placeholders with actual data:
 
-CRITICAL INSTRUCTIONS:
-
-OMIT ANY SECTION OR SUBSECTION that cannot be populated with the current findings. Do not include empty sections or placeholder text.
-
-Provide the complete, styled HTML structure as your output.
-
-REPLACE ALL placeholder text [like this] with the synthesized research and analysis.
-
-Maintain all styling classes and structure for proper rendering.
-
-The analysis should be frank, evidence-based, and actionable.
-
-Length Guidance: For sections requesting "between 2 and 4 paragraphs," provide substantive, insightful analysis. A "paragraph" is considered 3-5 concise, information-dense sentences. Do not be overly verbose; prioritize clarity and impact.
-
-EXPECTED OUTPUT: A complete, standalone HTML document following the structure below, with all placeholders replaced by substantive organizational analysis content.
-
-```html
-html
+```
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Internal Organizational Capability Report</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -114,33 +105,16 @@ html
             font-size: 1.2em;
         }
         
-        .toc-list {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: var(--border-radius);
-            border: 1px solid #dee2e6;
-            columns: 2;
-            column-gap: 30px;
-        }
-        
-        .toc-list li {
-            margin: 8px 0;
-            break-inside: avoid;
-        }
-        
-        .toc-list a {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-weight: 500;
-            display: block;
-            padding: 5px 0;
-            transition: all 0.3s ease;
-        }
-        
-        .toc-list a:hover {
+        .citation-link {
             color: var(--secondary-color);
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 0.9em;
+            vertical-align: super;
+        }
+        
+        .citation-link:hover {
             text-decoration: underline;
-            padding-left: 5px;
         }
         
         .data-grid {
@@ -274,416 +248,505 @@ html
             color: var(--secondary-color);
         }
         
-        .key-findings {
+        .segment-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
-            margin: 20px 0;
+            margin: 30px 0;
         }
         
-        .finding-card {
+        .segment-card {
             background: white;
             border-radius: var(--border-radius);
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             border-top: 4px solid var(--secondary-color);
+            transition: transform 0.3s ease;
         }
         
-        .finding-card.critical {
-            border-top-color: var(--danger-color);
+        .segment-card:hover {
+            transform: translateY(-5px);
         }
         
-        .finding-card.opportunity {
-            border-top-color: var(--success-color);
+        .segment-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-top: 0;
         }
         
-        .progress-bar {
-            height: 8px;
-            background: #e9ecef;
+        .segment-meta {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0;
+        }
+        
+        .segment-priority {
+            background: var(--light-color);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+        }
+        
+        .pestle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .pestle-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            border-left: 4px solid var(--secondary-color);
+        }
+        
+        .pestle-card.positive {
+            border-left-color: var(--success-color);
+        }
+        
+        .pestle-card.neutral {
+            border-left-color: var(--warning-color);
+        }
+        
+        .pestle-card.negative {
+            border-left-color: var(--danger-color);
+        }
+        
+        .swot-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+        
+        .swot-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .swot-card h4 {
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .swot-card ul {
+            padding-left: 20px;
+        }
+        
+        .swot-card.strengths {
+            border-top: 4px solid var(--success-color);
+        }
+        
+        .swot-card.weaknesses {
+            border-top: 4px solid var(--danger-color);
+        }
+        
+        .swot-card.opportunities {
+            border-top: 4px solid var(--secondary-color);
+        }
+        
+        .swot-card.threats {
+            border-top: 4px solid var(--warning-color);
+        }
+        
+        .positioning-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin: 20px 0;
+            border-left: 4px solid var(--secondary-color);
+        }
+        
+        .positioning-statement {
+            font-style: italic;
+            border-left: 3px solid var(--secondary-color);
+            padding-left: 15px;
+            margin: 15px 0;
+        }
+        
+        .marketing-mix-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+        
+        .marketing-mix-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .marketing-mix-card h4 {
+            color: var(--secondary-color);
+            margin-top: 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .reference-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+        
+        .reference-list li {
+            margin: 12px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .reference-list li:target {
+            background-color: #fffacd;
+            padding: 8px;
             border-radius: 4px;
-            overflow: hidden;
-            margin: 10px 0;
         }
         
-        .progress-fill {
-            height: 100%;
-            background: var(--secondary-color);
-            border-radius: 4px;
+        .reference-number {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-right: 8px;
+            display: inline-block;
+            min-width: 30px;
+        }
+        
+        .reference-url {
+            color: var(--secondary-color);
+            word-break: break-all;
         }
         
         footer {
             text-align: center;
             margin-top: 40px;
             padding-top: 20px;
-            border-top: 1px solid #dee2e6;
-            color: #6c757d;
+            border-top: 1px solid #ccc;
+            color: #888;
             font-size: 0.9em;
-        }
-        
-        @media (max-width: 768px) {
-            .container {
-                padding: 20px;
-            }
-            
-            .toc-list {
-                columns: 1;
-            }
-            
-            .report-meta {
-                grid-template-columns: 1fr;
-            }
-            
-            .data-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .key-findings {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="report-header">
-            <h1>Internal Organizational Capability Report</h1>
-            <div class="report-subtitle">A Strategic Analysis of Strengths, Weaknesses, and Opportunities</div>
-        </div>
+        <!-- HEADER SECTION INSTRUCTIONS:
+             Replace [[ORG_NAME]] with the actual organization name.
+             Update the subtitle to reflect the scope of this report.
+        -->
+        <header class="report-header">
+            <h1>[[ORG_NAME]] - Organizational Analysis Report</h1>
+            <div class="report-subtitle">Comprehensive Organizational Intelligence & Sales Insights</div>
+        </header>
 
+        <!-- METADATA SECTION INSTRUCTIONS:
+             Update the date, industry, and location with actual values.
+             Add additional metadata fields if needed.
+        -->
         <div class="report-meta">
-            <div>
-                <strong>Report Generated:</strong> <span>[Current Date]</span>
-            </div>
-            <div>
-                <strong>Subject:</strong> <span>[Organization Name] - Internal Analysis</span>
-            </div>
-            <div>
-                <strong>Confidentiality:</strong> <span>Strictly Internal Use</span>
-            </div>
+            <div><strong>Date:</strong> [[DATE]]</div>
+            <div><strong>Industry:</strong> [[INDUSTRY]]</div>
+            <div><strong>Headquarters:</strong> [[HQ_LOCATION]]</div>
         </div>
 
-        <div class="table-of-contents">
-            <h2>Table of Contents</h2>
-            <ul class="toc-list">
-                <li><a href="#executive-summary">1. Executive Summary</a></li>
-                <li><a href="#core-capabilities">2. Core Capabilities & Operational Model</a></li>
-                <li><a href="#financial-health">3. Financial Health & Resource Allocation</a></li>
-                <li><a href="#human-capital">4. Human Capital & Leadership Analysis</a></li>
-                <li><a href="#tech-ops">5. Technology & Operational Infrastructure</a></li>
-                <li><a href="#strategic-position">6. Strategic Market Position</a></li>
-                <li><a href="#cultural-assessment">7. Cultural Assessment & Organizational Health</a></li>
-                <li><a href="#swot">8. SWOT Analysis</a></li>
-                <li><a href="#strategic-imperatives">9. Strategic Imperatives & Recommendations</a></li>
-                <li><a href="#appendices">10. Appendices</a></li>
+        <section id="verification">
+            <h2>1. Organization Verification & Identity</h2>
+            <!-- Provide full legal and trade names, website, NAICS codes, and HQ verification -->
+            <p><strong>Legal Name:</strong> [[LEGAL_NAME]]</p>
+            <p><strong>Other Names:</strong> [[ALT_NAMES]]</p>
+            <p><strong>Website:</strong> <a href="[[WEBSITE_URL]]" target="_blank">[[WEBSITE_URL]]</a></p>
+            <p><strong>NAICS Code:</strong> [[NAICS_CODE]]</p>
+            <p><strong>Headquarters:</strong> [[HQ_LOCATION]]</p>
+            <!-- 
+                Verify digital presence by cross-checking official social media or directory listings.
+                Cite sources confirming identity.
+            -->
+        </section>
+
+        <section id="executive-summary">
+            <h2>2. Executive Summary</h2>
+            <div class="key-insights">
+                <h4>Key Highlights</h4>
+                <ul class="bullet-points">
+                    <li><strong>Founded:</strong> [[FOUNDED_DATE]] ([[COMPANY_AGE]] years old)</li>
+                    <li><strong>Employees:</strong> [[EMPLOYEE_COUNT]] ([[COMPANY_SIZE_CLASS]])</li>
+                    <li><strong>Annual Revenue:</strong> [[ANNUAL_REVENUE]] (Last reported FY) <a class="citation-link" href="#src-1">[1]</a></li>
+                    <li><strong>Primary Markets:</strong> [[KEY_MARKETS]]</li>
+                    <li><strong>Verification Status:</strong> Organization existence confirmed [<a class="citation-link" href="#src-2">2</a>]</li>
+                </ul>
+            </div>
+            <!-- Briefly summarize organization, key metrics, and sales intelligence relevance -->
+            <p>[[ORG_NAME]] operates as a [[INDUSTRY]] company with core business in [[CORE_BUSINESS]]. Notable performance indicators include a consistent revenue growth of [[REVENUE_GROWTH_RATE]] over the past [[YEARS_METRIC]]. Our analysis identifies critical sales opportunities in [[TARGET_SEGMENT]] with potential for [[EXPANSION_OPPORTUNITY]] <a class="citation-link" href="#src-3">[3]</a>.</p>
+        </section>
+
+        <section id="foundation-analysis">
+            <h2>3. Foundation Analysis</h2>
+            <!-- Cover business model, products/services, markets, value proposition, structure -->
+            <h3>Business Model & Revenue Streams</h3>
+            <p>[[ORG_NAME]] generates revenue through [[REVENUE_STREAMS_DESCRIPTION]]. The business model relies on [[BUSINESS_MODEL_DESCRIPTION]] to drive [[REVENUE_SOURCES]] <a class="citation-link" href="#src-4">[4]</a>.</p>
+            <h3>Products/Services Portfolio</h3>
+            <p>The company offers [[PRODUCTS_SERVICES]] targeting [[CUSTOMER_SEGMENTS]]. Key offerings include [[KEY_PRODUCTS_LIST]] among others. These are marketed with a value proposition focusing on [[VALUE_PROPOSITION]] <a class="citation-link" href="#src-5">[5]</a>.</p>
+            <h3>Corporate Structure & Geography</h3>
+            <p>[[ORG_NAME]] has [[CORP_STRUCTURE]] structure, headquartered in [[HQ_LOCATION]], with additional offices in [[ADDITIONAL_LOCATIONS]] as needed. The organizational hierarchy comprises [[ORG_HIERARCHY]] ensuring alignment across [[MARKET_COVERAGE]] <a class="citation-link" href="#src-6">[6]</a>.</p>
+        </section>
+
+        <section id="financial-intelligence">
+            <h2>4. Financial Intelligence & Market Position</h2>
+            <!-- Include revenue trends, funding, market share, stability metrics -->
+            <table class="data-table">
+                <thead>
+                    <tr><th>Year</th><th>Revenue</th><th>Funding Raised</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>[[YEAR_1]]</td><td>[[REVENUE_YEAR_1]]</td><td>[[FUNDING_YEAR_1]]</td><td>[[NOTE_1]]</td></tr>
+                    <tr><td>[[YEAR_2]]</td><td>[[REVENUE_YEAR_2]]</td><td>[[FUNDING_YEAR_2]]</td><td>[[NOTE_2]]</td></tr>
+                    <tr><td>[[YEAR_3]]</td><td>[[REVENUE_YEAR_3]]</td><td>[[FUNDING_YEAR_3]]</td><td>[[NOTE_3]]</td></tr>
+                </tbody>
+            </table>
+            <p>Revenue shows a [[REVENUE_TREND]] trend over the past few years, with recent growth of [[LATEST_GROWTH_RATE]]%. Funding history includes [[FUNDING_HISTORY_SUMMARY]] from investors such as [[INVESTOR_LIST]] <a class="citation-link" href="#src-7">[7]</a>. Market position indicates a [[MARKET_SHARE]] share in [[INDUSTRY_MARKET]] sector, ranking [[COMPETITIVE_RANKING]] among peers. Credit ratings and stability indicators suggest [[CREDIT_RATING_STATUS]] <a class="citation-link" href="#src-8">[8]</a>.</p>
+            <h3>Recent Financial News</h3>
+            <p>Recent reports highlight [[RECENT_FINANCIAL_NEWS]] including mentions of [[ANALYST_COVERAGE]] and [[PRESS_COVERAGE]] in relation to financial performance <a class="citation-link" href="#src-9">[9]</a>.</p>
+        </section>
+
+        <section id="leadership-personnel">
+            <h2>5. Leadership & Strategic Personnel</h2>
+            <!-- Executive profiles, board, changes, decision-makers -->
+            <div class="segment-grid">
+                <div class="segment-card">
+                    <h4 class="segment-title">[[EXEC_1_NAME]]</h4>
+                    <p><em>[[EXEC_1_TITLE]]</em></p>
+                    <p>Background: [[EXEC_1_BIO]] <a class="citation-link" href="#src-10">[10]</a></p>
+                </div>
+                <div class="segment-card">
+                    <h4 class="segment-title">[[EXEC_2_NAME]]</h4>
+                    <p><em>[[EXEC_2_TITLE]]</em></p>
+                    <p>Background: [[EXEC_2_BIO]] <a class="citation-link" href="#src-11">[11]</a></p>
+                </div>
+                <div class="segment-card">
+                    <h4 class="segment-title">[[EXEC_3_NAME]]</h4>
+                    <p><em>[[EXEC_3_TITLE]]</em></p>
+                    <p>Background: [[EXEC_3_BIO]] <a class="citation-link" href="#src-12">[12]</a></p>
+                </div>
+            </div>
+            <p>The board and key stakeholders include [[BOARD_MEMBERS]], influencing strategic directions. Recent leadership changes: [[LEADERSHIP_CHANGES]] have impacted [[IMPACT_DESCRIPTION]]. Key decision makers for procurement and partnerships are [[DECISION_MAKERS_LIST]]. Leadership stability is considered [[LEADERSHIP_STABILITY]].</p>
+        </section>
+
+        <section id="market-competition">
+            <h2>6. Market Intelligence & Competition</h2>
+            <!-- Competitors, advantages, trends, threats, recognition -->
+            <h3>Competitive Landscape</h3>
+            <ul class="bullet-points">
+                <li><strong>Competitor A:</strong> [[COMP_A_DESC]] <a class="citation-link" href="#src-14">[14]</a></li>
+                <li><strong>Competitor B:</strong> [[COMP_B_DESC]] <a class="citation-link" href="#src-15">[15]</a></li>
+                <li><strong>Competitor C:</strong> [[COMP_C_DESC]] <a class="citation-link" href="#src-16">[16]</a></li>
             </ul>
-        </div>
+            <h3>Competitive Advantages</h3>
+            <p>[[ORG_NAME]] differentiates through [[UNIQUE_DIFFERENTIATORS]] such as [[EXAMPLE_ADVANTAGE]]. Market dynamics include [[MARKET_TRENDS]] which position the company to leverage [[OPPORTUNITY_AREA]] <a class="citation-link" href="#src-17">[17]</a>. Notable awards: [[AWARDS_AND_RECOGNITION]].</p>
+        </section>
 
-        <!-- SECTION 1: EXECUTIVE SUMMARY -->
-        <div class="executive-summary">
-            <h2 id="executive-summary">1. Executive Summary</h2>
-            <div class="content-section">
-                <h3>Organizational Profile</h3>
-                <div>
-                    <strong>Organization Name:</strong> [Company legal name, DBA names]<br>
-                    <strong>Core Mission:</strong> [Statement of purpose]<br>
-                    <strong>Operational Status:</strong> [e.g., Growth, Maturity, Transformation, Turnaround]<br>
-                    <strong>Key Metrics:</strong> [Employee count, core operational units, geographic footprint]
-                </div>
+        <section id="strategic-initiatives">
+            <h2>7. Strategic Initiatives & Partnerships</h2>
+            <!-- Partnerships, investments, expansions, M&A, R&D, digital transformation -->
+            <ul class="bullet-points">
+                <li><strong>Partnerships:</strong> [[PARTNERSHIP_SUMMARY]]</li>
+                <li><strong>Technology Investments:</strong> [[TECH_INVESTMENTS_SUMMARY]] <a class="citation-link" href="#src-18">[18]</a></li>
+                <li><strong>Expansion Initiatives:</strong> [[EXPANSION_INITIATIVES]] such as [[EXAMPLE_EXPANSION]] in [[EXPANSION_YEAR]]</li>
+                <li><strong>Mergers & Acquisitions:</strong> [[M_A_ACTIVITY]] including [[ACQUISITION_TARGETS]] <a class="citation-link" href="#src-19">[19]</a></li>
+                <li><strong>R&D & Innovation:</strong> [[R_AND_D_FOCUS]] and patent portfolio emphasis</li>
+            </ul>
+            <p>Recent digital transformation efforts include [[DIGITAL_TRANSFORMATION]] improving [[TECH_ADOPTION]] <a class="citation-link" href="#src-20">[20]</a>. These initiatives suggest future growth and technological capabilities.</p>
+        </section>
 
-                <h3>Overall Health Assessment</h3>
-                <div class="sub-section">
-                    <p><strong>Operational Effectiveness:</strong></p>
-                    <div>
-                        [Provide a 2-4 paragraph synthesis of how efficiently the organization converts inputs into outputs. Assess process maturity, productivity metrics, and quality standards. Conclude with an overall verdict on operational health.]
-                    </div>
+        <section id="technology-maturity">
+            <h2>8. Technology & Digital Maturity</h2>
+            <!-- Tech stack, online presence, innovation, cybersecurity, digital marketing -->
+            <p>[[ORG_NAME]] utilizes [[TECH_STACK_DESCRIPTION]] across its operations. The technology infrastructure includes [[PLATFORMS_USED]] and strategic partnerships like [[TECH_PARTNERS]] <a class="citation-link" href="#src-21">[21]</a>. Digital presence analysis shows [[WEBSITE_TRAFFIC]] and engagement on social channels, reflecting [[ONLINE_ENGAGEMENT]].</p>
+            <p>Innovation capabilities are evidenced by [[INNOVATION_PROJECTS]], while cybersecurity posture aligns with [[CYBERSECURITY_STANDARD]] compliance. The company's digital marketing strategy encompasses [[DIGITAL_MARKETING_CHANNELS]] targeting [[TARGET_CUSTOMER_BASE]]. Notable technology vendors: [[VENDOR_LIST]].</p>
+        </section>
 
-                    <p><strong>Financial Vitality:</strong></p>
-                    <div>
-                        [Provide a 2-4 paragraph high-level assessment of financial stability, profitability, investment capacity, and sustainability of the current business model. Highlight key strengths and concerns.]
-                    </div>
+        <section id="recent-developments">
+            <h2>9. Recent Developments & News Analysis</h2>
+            <!-- Positive developments, challenges, regulatory issues, announcements, media sentiment, events -->
+            <ul class="bullet-points">
+                <li><strong>Positive Developments:</strong> [[POSITIVE_DEVELOPMENTS]] (last 12-18 months)</li>
+                <li><strong>Challenges:</strong> [[BUSINESS_CHALLENGES]] impacting operations</li>
+                <li><strong>Regulatory Issues:</strong> [[REGULATORY_CHALLENGES]] <a class="citation-link" href="#src-22">[22]</a></li>
+                <li><strong>Announcements:</strong> [[STRATEGIC_ANNOUNCEMENTS]] affecting future direction</li>
+                <li><strong>Media Sentiment:</strong> Coverage is [[MEDIA_SENTIMENT]] reflecting public perception</li>
+                <li><strong>Industry Events:</strong> Participation in [[EVENTS_LIST]] enhances visibility</li>
+            </ul>
+        </section>
 
-                    <p><strong>Strategic Coherence:</strong></p>
-                    <div>
-                        [Provide a 2-4 paragraph analysis of how well the organization's structure, culture, capabilities, and strategy are aligned towards common goals. Identify any major misalignments.]
-                    </div>
-                </div>
-
-                <h3>Critical Insights</h3>
-                <div class="key-findings">
-                    <div class="finding-card critical">
-                        <h4>Primary Vulnerabilities</h4>
-                        <div>
-                            [Write 1-2 paragraphs summarizing the most significant internal risks and weaknesses that require urgent attention. Be direct and evidence-based.]
-                        </div>
-                    </div>
-                    <div class="finding-card opportunity">
-                        <h4>Core Strengths & Unrealized Potentials</h4>
-                        <div>
-                            [Write 1-2 paragraphs summarizing the organization's strongest assets and the most promising opportunities for leverage and growth that are not yet fully capitalized upon.]
-                        </div>
-                    </div>
-                    <div class="finding-card">
-                        <h4>Strategic Implications</h4>
-                        <div>
-                            [Write 1-2 paragraphs on what this overall assessment means for the future direction and priorities of the organization. What is the overarching narrative?]
-                        </div>
-                    </div>
-                </div>
+        <section id="risk-reputation">
+            <h2>10. Risk & Reputation Assessment</h2>
+            <!-- Business risks, public perception, compliance, threats, financial, partnership risks -->
+            <div class="risk-warning">
+                <h4>Key Risks</h4>
+                <ul class="bullet-points">
+                    <li>[[RISK_1]] <a class="citation-link" href="#src-23">[23]</a></li>
+                    <li>[[RISK_2]] <a class="citation-link" href="#src-24">[24]</a></li>
+                    <li>[[RISK_3]] <a class="citation-link" href="#src-25">[25]</a></li>
+                </ul>
             </div>
-        </div>
+            <p>Reputation analysis indicates [[REPUTATION_STATUS]] with sentiment largely [[SENTIMENT_TONE]]. Regulatory compliance and legal exposure were found to be [[COMPLIANCE_STATUS]], with no major unresolved litigation <a class="citation-link" href="#src-26">[26]</a>. Financial stability and creditworthiness are assessed as [[FINANCIAL_RISK_LEVEL]]. Potential partnership risks include [[RELATIONSHIP_RISKS]].</p>
+        </section>
 
-        <!-- SECTION 2: CORE CAPABILITIES -->
-        <h2 id="core-capabilities">2. Core Capabilities & Operational Model</h2>
-        <div class="content-section">
-            <h3>Value Creation Engine</h3>
-            <div class="sub-section">
-                <p><strong>How We Create Value:</strong></p>
-                <div>
-                    [Provide a 2-4 paragraph detailed analysis of the organization's primary methods for creating value for its customers and stakeholders. Describe the key activities and processes that define the business.]
-                </div>
-                <p><strong>Core Competencies:</strong></p>
-                <div>
-                    [Provide a 2-4 paragraph identification and analysis of what the organization does uniquely better than anyone else. These are the roots of competitive advantage. Be specific and justify each claimed competency.]
-                </div>
-            </div>
+        <section id="sales-intelligence">
+            <h2>11. Sales Intelligence & Opportunity Analysis</h2>
+            <!-- Buying signals, budgets, decision process, vendor preferences, tech gaps, expansion signals -->
+            <ul class="bullet-points">
+                <li><strong>Buying Signals:</strong> [[BUYING_SIGNALS]] <a class="citation-link" href="#src-27">[27]</a></li>
+                <li><strong>Budget Indicators:</strong> [[BUDGET_INDICATORS]]</li>
+                <li><strong>Decision Process:</strong> [[DECISION_PROCESS]] involving [[DECISION_STAKEHOLDERS]]</li>
+                <li><strong>Vendor Criteria:</strong> [[VENDOR_CRITERIA]] preferred by procurement</li>
+                <li><strong>Technology Gaps:</strong> [[TECH_GAPS]] indicating need for [[NEEDED_SOLUTIONS]]</li>
+                <li><strong>Expansion Opportunities:</strong> [[EXPANSION_SIGNALS]]</li>
+            </ul>
+        </section>
 
-            <h3>Operational Structure & Processes</h3>
-            <div class="sub-section">
-                <div>
-                    [Provide a 2-4 paragraph analysis of the organizational design (e.g., functional, matrix, product-based). Analyze key workflows, decision-rights frameworks, and process efficiency. Identify any structural bottlenecks or advantages.]
-                </div>
-            </div>
-        </div>
+        <section id="cultural-insights">
+            <h2>12. Cultural & Operational Insights</h2>
+            <!-- Culture, employee satisfaction, CSR, DEI, operations, policies -->
+            <p>Company culture is characterized by [[CULTURE_DESC]] and core values like [[CORE_VALUES]]. Employee satisfaction metrics indicate [[EMPLOYEE_SATISFACTION_RATE]] satisfaction rate, highlighting [[SATISFACTION_FINDINGS]] <a class="citation-link" href="#src-28">[28]</a>. CSR initiatives include [[CSR_PROGRAMS]] demonstrating commitment to [[CSR_GOALS]]. DEI programs are active, with initiatives such as [[DEI_INITIATIVES]] improving workforce diversity.</p>
+            <p>Operational excellence is reflected in [[OPERATIONAL_METRICS]], with continuous improvement processes such as [[LEAN_INITIATIVES]]. Workplace policies now include [[WORKPLACE_POLICY]] (e.g., remote work and flexible hours) enhancing employee well-being.</p>
+        </section>
 
-        <!-- SECTION 3: FINANCIAL HEALTH -->
-        <h2 id="financial-health">3. Financial Health & Resource Allocation</h2>
-        <div class="content-section">
-            <h3>Efficiency & Investment Analysis</h3>
-            <div class="sub-section">
-                <p><strong>Spending Patterns & ROI:</strong></p>
-                <div>
-                    [Provide a 2-4 paragraph analysis of capital and operational expenditure. Where does the money go? What is the return on key investments? Assess cost structure and efficiency compared to industry norms.]
-                </div>
-                <p><strong>Resource Allocation Strategy:</strong></p>
-                <div>
-                    [Provide a 2-4 paragraph evaluation of how well financial and human resources are allocated to strategic priorities. Are resources focused on the most important areas for growth and sustainability?]
-                </div>
-            </div>
+        <section id="research-validation">
+            <h2>13. Research Validation & Source Quality</h2>
+            <!-- Source credibility, recency, data gaps, conflicts, confidence, follow-ups -->
+            <ul class="bullet-points">
+                <li><strong>Source Authority:</strong> Research used [[SOURCE_TYPE]] such as official filings, industry reports, and credible news outlets.</li>
+                <li><strong>Recency:</strong> Majority of data is from the past [[DATA_RECENT_YEARS]] years, ensuring relevance.</li>
+                <li><strong>Data Gaps:</strong> Areas like [[DATA_GAPS]] lacked publicly available information and are noted.</li>
+                <li><strong>Conflicts:</strong> [[CONFLICTING_INFO]] were reconciled by cross-verifying multiple sources.</li>
+                <li><strong>Confidence Level:</strong> Overall confidence is [[CONFIDENCE_LEVEL]] across sections based on source quality.</li>
+                <li><strong>Follow-up Research:</strong> Additional investigation into [[FOLLOWUP_TOPICS]] is recommended for next steps.</li>
+            </ul>
+        </section>
 
-            <h3>Financial Metrics Overview</h3>
-            <div class="data-grid">
-                <div class="data-card">
-                    <h4>Revenue Stability</h4>
-                    <div class="metric-value">[Diversity Score, e.g., High/Med/Low or %]</div>
-                    <div class="metric-label">Diversity & Recurrence of Revenue</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 75%;"></div>
-                    </div>
-                </div>
-                <div class="data-card">
-                    <h4>Profitability Efficiency</h4>
-                    <div class="metric-value">[e.g., 15% Margin]</div>
-                    <div class="metric-label">Margin Analysis vs. Benchmark</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 60%;"></div>
-                    </div>
-                </div>
-                <div class="data-card">
-                    <h4>Investment Capacity</h4>
-                    <div class="metric-value">[e.g., $XXM Cash]</div>
-                    <div class="metric-label">Cash Flow & Liquidity</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 85%;"></div>
-                    </div>
-                </div>
-                <div class="data-card">
-                    <h4>Cost Management</h4>
-                    <div class="metric-value">[Efficiency Ratio]</div>
-                    <div class="metric-label">Operational Efficiency</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 70%;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION 4: HUMAN CAPITAL -->
-        <h2 id="human-capital">4. Human Capital & Leadership Analysis</h2>
-        <div class="content-section">
-            <h3>Talent Landscape</h3>
-            <div class="sub-section">
-                <p><strong>Workforce Composition:</strong></p>
-                <div>
-                    [Provide a 2-4 paragraph analysis of skills distribution, experience levels, diversity, and critical talent roles. Identify skills gaps and surpluses. Comment on the overall quality and depth of talent.]
-                </div>
-                <p><strong>Culture & Engagement:</strong></p>
-                <div>
-                    [Provide a 2-4 paragraph assessment of employee morale, engagement scores, retention rates, and the health of the organizational culture. What are the key cultural drivers?]
-                </div>
-            </div>
-
-            <h3>Leadership Effectiveness</h3>
-            <div class="sub-section">
-                <p><strong>Strategic Alignment:</strong></p>
-                <div>
-                    [Provide a 2-4 paragraph analysis of how well leadership communicates and drives the strategy throughout the organization. Is there a unified vision?]
-                </div>
-                <p><strong>Decision-Making Efficacy:</strong></p>
-                <div>
-                    [Provide a 2-4 paragraph analysis of the speed, quality, and inclusiveness of decision-making processes. Are decisions made at the right level?]
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION 5: TECHNOLOGY & OPERATIONS -->
-        <h2 id="tech-ops">5. Technology & Operational Infrastructure</h2>
-        <div class="content-section">
-            <h3>Technology Stack Maturity</h3>
-            <div class="sub-section">
-                <div>
-                    [Provide a 2-4 paragraph assessment of the current technology's ability to support business goals. Evaluate scalability, security, integration, and modernness. Identify technical debt and its implications.]
-                </div>
-            </div>
-
-            <h3>Operational Resilience</h3>
-            <div class="sub-section">
-                <div>
-                    [Provide a 2-4 paragraph analysis of the robustness of key operational systems (production, logistics, customer service, etc.). Assess capacity, single points of failure, bottlenecks, and overall risk exposure.]
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION 6: STRATEGIC POSITION -->
-        <h2 id="strategic-position">6. Strategic Market Position</h2>
-        <div class="content-section">
-            <h3>Competitive Advantage</h3>
-            <div class="sub-section">
-                <div>
-                    [Provide a 2-4 paragraph frank assessment of the durability and sources of the organization's competitive advantage (e.g., Cost, Differentiation, Focus). How strong and defensible is this advantage?]
-                </div>
-            </div>
-
-            <h3>Brand & Reputation Equity</h3>
-            <div class="sub-section">
-                <div>
-                    [Provide a 2-4 paragraph analysis of the strength of the brand, customer loyalty, market perception, and overall reputation as a key intangible asset. How does this impact operational effectiveness?]
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION 7: CULTURAL ASSESSMENT -->
-        <h2 id="cultural-assessment">7. Cultural Assessment & Organizational Health</h2>
-        <div class="content-section">
-            <h3>Core Cultural Traits</h3>
-            <div class="sub-section">
-                <div>
-                    [Provide a 2-4 paragraph description of the observable culture: values, behaviors, rituals, and unwritten rules that define "how things are done around here." Is the culture an asset or a liability?]
-                </div>
-            </div>
-
-            <h3>Adaptability & Learning</h3>
-            <div class="sub-section">
-                <div>
-                    [Provide a 2-4 paragraph assessment of the organization's ability to learn, innovate, and adapt to change. Is the culture a catalyst or an impediment to change? Assess the tolerance for risk and failure.]
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION 8: SWOT -->
-        <h2 id="swot">8. SWOT Analysis</h2>
-        <div class="content-section">
-            <div class="data-grid" style="grid-template-columns: 1fr 1fr; gap: 15px;">
-                <div class="data-card" style="background-color: #f0fff4; text-align: left;">
-                    <h4>Strengths</h4>
-                    <ul class="bullet-points">
-                        <li>[Internal capability that provides an advantage]</li>
-                        <li>[Unique resource or asset]</li>
-                        <li>[Strong brand reputation]</li>
-                        <li>[Patents, intellectual property]</li>
-                        <li>[Expertise, knowledge, data]</li>
-                    </ul>
-                </div>
-                <div class="data-card" style="background-color: #fff5f5; text-align: left;">
-                    <h4>Weaknesses</h4>
-                    <ul class="bullet-points">
-                        <li>[Internal limitation or gap]</li>
-                        <li>[Area where competitors are stronger]</li>
-                        <li>[Operational inefficiency]</li>
-                        <li>[Financial constraint]</li>
-                        <li>[Reputational challenge]</li>
-                    </ul>
-                </div>
-                <div class="data-card" style="background-color: #e8f6ff; text-align: left;">
-                    <h4>Opportunities</h4>
-                    <ul class="bullet-points">
-                        <li>[Favorable market or industry trend]</li>
-                        <li>[New technology to leverage]</li>
-                        <li>[Change in customer behavior]</li>
-                        <li>[Potential partnership or alliance]</li>
-                        <li>[New market segment to enter]</li>
-                    </ul>
-                </div>
-                <div class="data-card" style="background-color: #fff4e0; text-align: left;">
-                    <h4>Threats</h4>
-                    <ul class="bullet-points">
-                        <li>[Emerging competitor or disruptive innovation]</li>
-                        <li>[Changing regulatory landscape]</li>
-                        <li>[Negative economic shift]</li>
-                        <li>[Substitute product/service]</li>
-                        <li>[Key talent shortage]</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION 9: STRATEGIC IMPERATIVES -->
-        <h2 id="strategic-imperatives">9. Strategic Imperatives & Recommendations</h2>
-        <div class="content-section">
-            <h3>Priority Initiatives</h3>
-            <div class="sub-section">
-                <div class="recommendation-box">
-                    <h4>Strengthen Core Capabilities</h4>
-                    <div>
-                        [Provide 2-4 paragraphs of actionable recommendations for investing in and bolstering the organization's key strengths. Be specific about what actions to take and why.]
-                    </div>
-                </div>
-                <div class="recommendation-box">
-                    <h4>Address Critical Vulnerabilities</h4>
-                    <div>
-                        [Provide 2-4 paragraphs of an actionable plan for mitigating the most severe weaknesses and threats identified in the analysis. Prioritize based on impact and urgency.]
-                    </div>
-                </div>
-                <div class="recommendation-box">
-                    <h4>Capitalize on Key Opportunities</h4>
-                    <div>
-                        [Provide 2-4 paragraphs of a actionable strategy for leveraging strengths to exploit the most promising opportunities. Define what success looks like.]
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECTION 10: APPENDICES -->
-        <h2 id="appendices">10. Appendices</h2>
-        <div class="content-section">
-            <h3>Appendix A: Key Data Summary</h3>
-            <p><em>[If applicable, include summarized data tables here]</em></p>
-
-            <h3>Appendix B: Research Sources</h3>
-            <p><em>[List the key sources of information used to compile this report]</em></p>
-        </div>
+        <section id="references">
+            <h2>References</h2>
+            <ul class="reference-list">
+                <li id="src-1"><span class="reference-number">[1]</span> <a href="[[SRC_1_URL]]" class="citation-link">[[SRC_1_TITLE]]</a></li>
+                <li id="src-2"><span class="reference-number">[2]</span> <a href="[[SRC_2_URL]]" class="citation-link">[[SRC_2_TITLE]]</a></li>
+                <li id="src-3"><span class="reference-number">[3]</span> <a href="[[SRC_3_URL]]" class="citation-link">[[SRC_3_TITLE]]</a></li>
+            </ul>
+        </section>
 
         <footer>
-            <p>© [Current Year] - Internal Organizational Analysis Report. Confidential and Proprietary.</p>
+            <p>[[ORG_NAME]] | [[DATE]]</p>
         </footer>
     </div>
 </body>
 </html>
 ```
+    ---
+    ### HTML TEMPLATE COMPLIANCE
 
-    **CRITICAL INSTRUCTIONS:**
-    - Provide the complete HTML structure above as your output
-    - REPLACE ALL placeholder text exactly as shown
-    - Include all sections unless specifically excluded in the research plan
-    - Maintain the styling classes and structure for proper rendering
-    - The researcher will replace placeholders with actual research findings
-    """
+    **CRITICAL:** You must use the EXACT HTML structure provided above. Do not modify the HTML structure, CSS, or JavaScript. Only replace the bracketed placeholders with actual data.
+
+    **1. Template Sections to Fill:**
+    - Replace [[ORGANIZATION_NAME]] with actual organization name
+    - Replace [[REPORT_TITLE]] with generated report title
+    - Replace [[DATE]] with current date: {datetime.datetime.now().strftime("%B %d, %Y")}
+    - Fill all bracketed placeholders throughout the document
+    - Populate tables with actual data rows
+    - Update metric values and organizational data
+    - Replace placeholder content in each section
+
+    **2. Data Population Rules:**
+    - **Tables:** Add actual data rows inside <tbody> sections, removing placeholder rows when necessary
+    - **Metrics:** Update metric values with actual organizational figures
+    - **Executive Cards:** Create cards for each key executive with real background information
+    - **Data Grids:** Fill data cards with specific organizational metrics and information
+    - **Finding Cards:** Use appropriate CSS classes (critical, opportunity, warning) based on analysis
+    - **Risk Cards:** Apply correct risk level classes (high-risk, medium-risk, low-risk)
+
+    **3. Missing Data Handling:**
+    - If specific data is not found, explicitly state "Information not available in research"
+    - Do not leave bracketed placeholders unfilled
+    - For missing metrics, use "N/A" or state "Data not found"
+    - For missing sections, include a note explaining the limitation
+
+    ---
+    ### CONTENT QUALITY STANDARDS
+
+    **1. Comprehensive Organizational Coverage:**
+    - Executive Summary with key organizational metrics and strategic assessment
+    - Complete organizational verification including legal entity and digital presence
+    - Detailed financial analysis with performance trends and funding history
+    - Leadership profiles with executive backgrounds and decision-making structure
+    - Market intelligence with competitive analysis and positioning
+    - Technology assessment including digital maturity and innovation capabilities
+    - Recent developments with timeline of significant events
+    - Risk assessment covering business, reputation, and financial risks
+    - Sales intelligence with buying signals and engagement recommendations
+    - Cultural insights including values, employee satisfaction, and CSR initiatives
+    - Research validation with source quality assessment and confidence levels
+
+    **2. Data Integration:**
+    - Use actual figures from organizational research findings
+    - Include specific financial metrics, employee counts, and operational data
+    - Provide executive names, titles, and background information when available
+    - Reference recent developments and strategic initiatives (2023-2024)
+    - Include geographic presence and market coverage specifics
+    - Document partnerships, acquisitions, and strategic relationships
+
+    **3. Strategic Intelligence Focus:**
+    - Each section should provide actionable business intelligence
+    - Balance opportunities with challenges and risks
+    - Provide clear rationale for engagement recommendations
+    - Connect organizational capabilities to strategic implications
+    - Link competitive positioning to business development opportunities
+
+    ---
+    ### WIKIPEDIA-STYLE CITATION REQUIREMENTS
+    **Citation Format:** All numbered citations should be hyperlinks to the relevant reference at the bottom.
+    - Cite all financial figures, revenue data, and performance metrics
+    - Cite leadership information, executive backgrounds, and organizational changes
+    - Cite competitive intelligence, market share data, and positioning claims
+    - Cite strategic developments, partnerships, and business initiatives
+    - Cite technology investments, innovation programs, and digital transformation efforts
+    - Citations will be automatically converted to numbered hyperlinks
+
+    ---
+    ### ORGANIZATIONAL INTELLIGENCE SPECIALIZATIONS
+
+    **1. Sales Intelligence Priority:**
+    - Emphasize buying signals, budget indicators, and procurement patterns
+    - Highlight decision-maker identification and influence mapping
+    - Focus on opportunity timing and optimal engagement strategies
+    - Include vendor relationship preferences and partnership approaches
+
+    **2. Competitive Intelligence:**
+    - Provide detailed competitive landscape analysis
+    - Include market positioning and differentiation factors
+    - Document competitive advantages and vulnerabilities
+    - Assess industry trends and market dynamics impact
+
+    **3. Risk Assessment Focus:**
+    - Cover business risks, operational threats, and market vulnerabilities
+    - Include reputation risks and public perception analysis
+    - Assess financial stability and creditworthiness indicators
+    - Document regulatory compliance and legal exposure
+
+    ---
+    ### FINAL QUALITY CHECKLIST
+    - [ ] All bracketed placeholders replaced with actual organizational data
+    - [ ] Tables populated with real organizational metrics and information
+    - [ ] Executive cards created with actual leadership profiles
+    - [ ] Financial metrics and performance data accurately represented
+    - [ ] Citations added for all factual claims and data points
+    - [ ] Missing data explicitly acknowledged where applicable
+    - [ ] Professional tone maintained throughout with business intelligence focus
+    - [ ] Strategic insights and actionable recommendations provided in each section
+    - [ ] Sales intelligence and engagement recommendations clearly articulated
+
+    Generate the complete HTML organizational intelligence report using the template above with all placeholders filled with actual research data focused on strategic business intelligence and sales insights.
+"""

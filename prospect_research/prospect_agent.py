@@ -15,7 +15,7 @@ from google.genai import types as genai_types
 from pydantic import BaseModel, Field
 from google.adk.models import Gemini
 
-from ...config import config
+from .config import config
 
 
 # --- Structured Output Models ---
@@ -597,6 +597,7 @@ prospect_researcher = LlmAgent(
     Ready to generate your Apollo.io search parameters - just provide your product and company details to begin.
     """,
     sub_agents=[prospect_research_pipeline],
+    # tools=[AgentTool()],
     output_key="prospect_researcher",
 )
 

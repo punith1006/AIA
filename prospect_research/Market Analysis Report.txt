@@ -1,0 +1,254 @@
+Market Analysis Report  
+Client: Global Knowledge Tech  
+Product: Master AI – The Leitner Way Professional AI Learning System  
+Geographic Focus: Bangalore, India  
+
+---
+
+## 1. Executive Summary  
+
+1.1 Market Definition and Scope  
+- The “Professional AI Learning Systems” market comprises educational tools—online courses, certifications, bootcamps, executive programs—focused on delivering AI and machine learning (ML) knowledge to professionals and students. These systems leverage AI/ML, and sometimes immersive technologies (AR/VR), to enhance learning effectiveness and retention <a href="#ref1">[1]</a>.  
+- This segment sits within the broader EdTech industry, targeting both B2C (individual learners) and B2B (corporate training, academic institutions) buyers, with a core focus on upskilling/reskilling for AI roles.  
+- Geographic focus for this report is Bangalore, India, with contextual references to national (India) and global markets.
+
+1.2 Key Market Size Metrics  
+- Total Addressable Market (TAM)  
+  • Global EdTech market was valued at USD 250.16 billion in 2024 and is projected to reach USD 721.15 billion by 2033 (CAGR 11.86% from 2025–2033) <a href="#ref3">[3]</a>.  
+  • Global AI in Education sub-segment is estimated at USD 5.88 billion in 2024, growing to USD 32.27 billion by 2030 (CAGR 31.2% from 2025–2030) <a href="#ref2">[2]</a>.  
+
+- Serviceable Available Market (SAM)  
+  • Indian EdTech market was USD 4.3 billion in 2022 (CAGR 16.8% from 2017–2022) <a href="#ref12">[12]</a>; another source reports USD 6 billion in 2022 (CAGR 40%) <a href="#ref13">[13]</a>.  
+  • India’s professional education industry (including AI upskilling) was projected to grow 56% by end-2023 <a href="#ref15">[15]</a>.  
+  • India faces a 51% imbalance between supply and demand of AI skills, despite ~420,000 existing AI professionals; shortages could near one million by 2027 <a href="#ref16">[16]</a>.  
+  • 85% of Indian professionals plan to upskill in FY25, and 70% are actively seeking opportunities <a href="#ref18">[18]</a>.  
+  • India leads in generative AI learner adoption, with 1.3 million enrollments in 2024 and 2.6 million to date on Coursera (107% YoY growth) <a href="#ref20">[20]</a>.  
+
+- Serviceable Obtainable Market (SOM) – Bangalore  
+  • India’s corporate training market: USD 10.8 billion in 2024, projected to USD 37.8 billion by 2033 (CAGR 13.4%) <a href="#ref33">[33]</a>.  
+  • 40% of corporate training spend is on digital/IT/AI skills <a href="#ref35">[35]</a>.  
+  • Assuming Bangalore represents 12% of India’s AI/IT corporate training spend, its 2024 market size is USD 518.4 million.  
+  • Global Knowledge Tech SOM projections:  
+    – Year 1 (2025): USD 2.94 million (0.5% capture of USD 587.9 million)  
+    – Year 3 (2027): USD 11.31 million (1.5% capture of USD 753.8 million)  
+    – Year 5 (2029): USD 28.99 million (3.0% capture of USD 966.5 million)  
+
+- Historical & Forecast CAGRs  
+  • Global EdTech: 11.86%–17.34% (2025–2033) <a href="#ref3">[3]</a>  
+  • Global AI in Education: 20.77%–47.2% (2025–2034) <a href="#ref2">[2]</a>  
+  • India EdTech: 16.8% (2017–2022) <a href="#ref12">[12]</a>  
+  • India Corporate Training: 13.4% (2025–2033) <a href="#ref33">[33]</a>
+
+1.3 Major Findings and Insights  
+- Strong demand driven by AI adoption across industries (healthcare, finance, retail, manufacturing, agriculture) and a critical skills gap <a href="#ref17">[17]</a>.  
+- Government initiatives (National AI Strategy, Digital India, Skill India, FutureSkills Prime) fuel AI upskilling and provide alignment opportunities <a href="#ref31">[31]</a>.  
+- Differentiation: “Master AI – The Leitner Way” offers a tactile, distraction-free, spaced-repetition system, appealing to learners facing digital fatigue.  
+- High willingness to pay: Professionals value structured, efficient, long-term retention methods.  
+- Competitive intensity: Major online players (Simplilearn, Great Learning, UpGrad) dominate, with many local institutes offering affordable, hands-on courses.  
+- Key challenges: Instructor scarcity, digital divide in peripheral regions, quality assurance of online content.  
+- Bangalore is India’s AI/IT hub, with a tech-savvy workforce and extensive corporate training budgets.
+
+---
+
+## 2. Market Overview  
+
+2.1 Industry Classification and Segments  
+- EdTech → Professional Development & Corporate Training → AI/ML specialization.  
+- Supplemental market in higher education for foundational AI courses.
+
+2.2 Product Category Definitions and Use Cases  
+“Master AI – The Leitner Way” is a flashcard-based system using spaced repetition to master AI concepts in three tracks and progressive difficulty levels: Basic, Intermediate, Advanced. Key use cases:  
+• Executive upskilling for strategic AI decision-making  
+• Fintech professional training (algorithmic trading, risk management)  
+• Foundational ML education for students and career changers  
+• Standardizing AI knowledge across teams  
+
+2.3 Market Drivers and Trends  
+- Drivers: Rapid AI adoption in enterprises, glaring skills gap, remote/hybrid learning rise, government digital skill policies <a href="#ref17">[17]</a>.  
+- Trends: Micro-learning, blended physical-digital modalities, AI-powered personalized content (Generative AI).
+
+---
+
+## 3. Market Sizing  
+
+3.1 Total Addressable Market (TAM)  
+- Global EdTech professional training: USD 163.49 billion–250.16 billion in 2024; to USD 721.15 billion by 2033 at 11.86%–17.34% CAGR <a href="#ref3">[3]</a>.  
+- Global AI/ML training sub-segment: USD 5.88 billion in 2024; USD 32.27 billion by 2030 at 31.2% CAGR <a href="#ref2">[2]</a>.
+
+3.2 Serviceable Available Market (SAM)  
+- India & APAC AI upskilling: USD 4.3 billion–6 billion in 2022, growing ~16.8%–40% CAGR <a href="#ref12">[12]</a><a href="#ref13">[13]</a>.  
+- India corporate training: USD 10.8 billion in 2024; to USD 37.8 billion by 2033 at 13.4% CAGR <a href="#ref33">[33]</a>.
+
+3.3 Serviceable Obtainable Market (SOM)  
+- Bangalore’s AI/IT corporate training market: USD 518.4 million in 2024.  
+- Projections for Global Knowledge Tech:  
+  • 2025: USD 2.94 million (0.5% share)  
+  • 2027: USD 11.31 million (1.5% share)  
+  • 2029: USD 28.99 million (3.0% share)
+
+3.4 Historical & Projected Growth Rates  
+- Indian EdTech: 16.8%–40% (2017–2022) <a href="#ref12">[12]</a><a href="#ref13">[13]</a>  
+- India corporate training: 9.8% (2017–2022) accelerating to 13.4% (2025–2033) <a href="#ref33">[33]</a>
+
+---
+
+## 4. Industry Ecosystem  
+
+4.1 Industry Value Chain & Ecosystem Map  
+- Content creators: AI SMEs, instructional designers, academia (IIIT Bangalore, IIM Bangalore) <a href="#ref36">[36]</a>.  
+- Platform providers: Coursera, UpGrad, Simplilearn, Great Learning; local institutes (Cambridge Infotech, AnalytixLabs, Besant, ACTE) <a href="#ref37">[37]</a>.  
+- Physical materials manufacturers: professional card stock, storage organizers.  
+- Distribution channels: direct B2C (e-commerce, company website), B2B (corporate L&D), academic partnerships, training marketplaces <a href="#ref41">[41]</a>.  
+- Support services: certification bodies (NASSCOM, ASSOCHAM), government skill development agencies.
+
+4.2 Key Suppliers, Partners & Distribution Channels  
+- LMS/tech partners: Moodle, TalentLMS; AI frameworks (TensorFlow, Keras), analytics tools (Tableau, Power BI) <a href="#ref16">[16]</a>.  
+- Physical manufacturers: specialized card-stock and box producers.  
+- Corporate training aggregators: NIIT, Manipal Global, Centum, Aptech <a href="#ref41">[41]</a>.  
+- Accreditation partners: NASSCOM, university bodies (IIT Guwahati via AnalytixLabs) <a href="#ref38">[38]</a>.
+
+4.3 Regulatory Environment & Standards Bodies  
+- Learning standards: SCORM, xAPI (for digital companion) <a href="#ref31">[31]</a>.  
+- Accreditation: industry bodies (NASSCOM), academic certifications (IITs/IIMs).  
+- Data privacy: Digital Personal Data Protection Act, 2023 compliance required <a href="#ref31">[31]</a>.  
+- Alignment with NEP 2020, Skill India, Digital India beneficial.
+
+4.4 Technology Adoption & Infrastructure  
+- High adoption of online learning platforms; GenAI for content personalization <a href="#ref20">[20]</a>.  
+- Bangalore ICT infrastructure: extensive broadband/mobile penetration and device usage supports blended models <a href="#ref31">[31]</a>.  
+- Emerging tech: AI-powered adaptive learning, gamification, VR/AR.
+
+---
+
+## 6. Market Maturity & Trends  
+
+6.1 Market Lifecycle Stage  
+- Growth phase: evidenced by strong investments, rising enrollments, skills gap urgency, competitive intensity <a href="#ref10">[10]</a><a href="#ref17">[17]</a>.
+
+6.2 Key Market Trends & Innovation Indicators  
+- Personalization via adaptive algorithms  
+- Micro-learning & gamification aligned with spaced repetition  
+- Generative AI for flashcard/content generation  
+- Blended learning combining physical/digital modalities  
+- Emphasis on hands-on, project-based learning  
+
+6.3 Growth Rate & Saturation Analysis  
+- High growth in Tier-1 cities; early saturation in generic online offerings may prompt price pressure, but differentiated products can command premium.
+
+6.4 Potential Disruptors & Technology Trends  
+- Free/open-source AI courses (Fast.ai, MOOCs) challenging paid models  
+- AI-powered automated tutoring reducing need for instructors  
+- Blockchain credentials for verifiable certifications  
+- VR/AR for immersive simulations  
+- Hyper-personalized learning paths via advanced analytics
+
+---
+
+## 7. Geographic Market Analysis  
+
+7.1 Regional Market Sizes & Key Differences  
+- Global vs. APAC vs. India: India is a key growth driver due to a large youth population and digital initiatives <a href="#ref7">[7]</a>.  
+- Bangalore’s concentration of tech firms and academic institutions makes it a priority market.
+
+7.2 Major Regional Competitors & Local Factors  
+- National competitors: Simplilearn, Great Learning, UpGrad (IIIT B partnership) <a href="#ref13">[13]</a>.  
+- Local institutes: Cambridge Infotech, AnalytixLabs, Besant, ACTE <a href="#ref16">[16]</a><a href="#ref18">[18]</a>.  
+- Cost sensitivity remains, but professionals will pay for high-quality, career-advancing programs.  
+- English dominates; blended learning preference is rising.
+
+7.3 Geographic Opportunities & Expansion Challenges  
+- Bangalore’s large IT workforce and startup ecosystem present corporate partnership opportunities.  
+- Challenges: intense competition, state-level policy variations, infrastructure gaps outside Tier-1 cities.  
+- Future expansion: Hyderabad, Pune, Chennai, Delhi NCR; APAC markets like Singapore and Vietnam.
+
+---
+
+## 8. Conclusions & Recommendations  
+
+8.1 Major Opportunities & Threats  
+- Opportunities: niche differentiation, corporate L&D partnerships, blended physical-digital offerings, strong upskilling demand.  
+- Threats: incumbent digital platforms, price erosion from free resources, quality and instructor availability.
+
+8.2 Strategic Recommendations & Next Steps  
+- Pilot corporate training with Bangalore IT firms and Global Capability Centres.  
+- Develop a digital companion app: progress tracking, adaptive algorithms, supplementary content, generative AI Q&A.  
+- Forge accreditation partnerships (NASSCOM, IITs/IIMs) for co-certification.  
+- Emphasize tactile, distraction-free USP in marketing campaigns.  
+- Segment marketing by track (Business, Finance, General AI & ML) to align messaging.
+
+8.3 Data Gaps & Uncertainty Considerations  
+- Limited public data on tactile learning system adoption and physical product market shares.  
+- Corporate training budgets fluctuate with economic cycles.  
+- Need primary research on user acceptance and willingness-to-pay for physical vs. digital-only models.  
+- Further pricing strategy validation required through market testing.
+
+---
+
+References  
+1. businessresearchinsights.com  
+2. grandviewresearch.com  
+3. imarcgroup.com  
+4. grandviewresearch.com  
+5. marketresearchfuture.com  
+6. market.us  
+7. researchandmarkets.com  
+10. maximizemarketresearch.com  
+12. medium.com  
+13. cppr.in  
+14. livemint.com  
+15. emeritus.org  
+16. indiaai.gov.in  
+17. indianexpress.com  
+18. economictimes.com  
+20. etvbharat.com  
+23. trade.gov  
+29. indiaai.gov.in  
+31. digitalindia.gov.in  
+33. imarcgroup.com  
+35. tracedataresearch.com  
+36. datamites.com  
+37. cambridgeinfotech.io  
+38. analytixlabs.co.in  
+39. besanttechnologies.com  
+41. researchandmarkets.com
+
+## References
+
+<a name="ref1"></a>[1] [businessresearchinsights.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGdZm2boTiC--yAW-aHxMVgKTB_WsxiJrBeeh9YoXAQt2zR-kGW4wI1CxZ-a-iaf6hBCEDdPKet4rqOf-zf_RJCNkhMlhpNHgYzWbPdrca6XNNVJgn7KGmpZz8GmdATpanjVFNuPcznI75OA1FdsURqZ0ToIHGtbO4BerFaltqGB-wzbohg9YPFYZU3Wyt1QlIsK_lj4CBdcw8Yha0=)
+
+<a name="ref2"></a>[2] [grandviewresearch.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEmaAtAEtn-O9CWHi9MuMVAAnUbTUwvKiLr9-ids8m0ToFw1QTrHC3tuHmY72fsYvUbdwmBSMgL1GQ4emghdGG3HPaMt3L0IMRxo8Uf1lgObPiKS4EEHl4BNb9xLL53CWLdl3GdNdQHQE5Mjj_aTICw2f0SWQanxBvvANtaW9AvRdXuothRtq4ukn8URIMYU_7nt-MVKZa2iyMfOm3ZyS60)
+
+<a name="ref3"></a>[3] [imarcgroup.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF7ve6OGbXp5hB7dJSBHPtj1sNVdNb48BDQtZtrW_6iIReoQQknAxZTm-y4zu6WD4IIUYSXL6JZ8fC9owxqpJeHaFZ9V8QA5CuRPDjnLWOqPB_2bMPAEPhdce2QqyUpTP1H4A==)
+
+<a name="ref7"></a>[7] [researchandmarkets.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEuJ7cFaJl_y02wgsqM3zgv5uvS1WYicwieKIxRIzqQg8h_gvje_-dMobZPy4SNDf3HKryd64JuPmZMeQNeArQCcw0wGiT__OEEqJgP1j2-nZvlNxNnkyxnflamm04DVC923Wd8qCGI_tEf34CZVCrt)
+
+<a name="ref10"></a>[10] [maximizemarketresearch.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFUEPZ9s88y4ZJP68f10soQ8qxf8j76o9_oNRJQfXksHAGlfdEcv4OziL_zvFjuNkcDS6t9Nw-l96O1f34dLkdTVsjjd2XsbGzXZ7DtsC6m5CKyS5YpMfry5gRzRtJZgvCyB0374DTrlTYw1WNkuAiAlm9PfK_ZfOJg02zdUO0hNoxbha2CkKpMja6E-tq7B03nc3Q=)
+
+<a name="ref12"></a>[12] [medium.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGWCTgOKZdpmsFeDRO_sONsG_PdU6rPoAehFZofqv2OYF-HPWLSX7fJtdp5TS8pi02OqgJKN_ReSn2cecz8XNQvH-YQh9Lb9qe5dAzfTgznIpZH8PBYnm6OAd8nJtcp8mI6pqZSwNiWhHa_z8d_xj8I1fhJXYN609EJwi4_69Ommz7FZZBKv5ZRHQrwh3GZfKnuZw40XPGM3iq6Mw==)
+
+<a name="ref13"></a>[13] [cppr.in](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQELRLJGbcOjh4mLphqQo0s53bNEzaPCsUzLYuxENzWNmGbaj_xO5NAznvH9PoQmic5NSlUtH1MtKgxC2hejlfEzabhOG6KH6QDZO9n6amSn2FaEomnuIxsVRaXtAVVlqB3kf89jLv67NiSO8x3YIPrvVacUwmz1PFChd8op_KehfJj_88y4ak0=)
+
+<a name="ref15"></a>[15] [emeritus.org](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfSSvEpt6Olg7nRX6bQQiMfFGaL3a0pyIm57Tt1gWBapebZXP0hibLhrxNQYvXewoFAmCCAp5xvLkuMMSy7ePvbJ3RsnnVE6RKGp6vmU2VAaC1SblMXLroyaEqgxvEhcZ6zTG0mJ6Hh2F_mOMSBq_RLT-B)
+
+<a name="ref16"></a>[16] [indiaai.gov.in](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGpC1rSLTP6vd4W9eQapCAglxtdBJKSQspLgnAaKTawH_i3U0pBZEVm4Yzjq8QFMYoRSPKb4BqgZSxPb4I_F1TRPIZEPBMCgm3RlRIywStACA9bEjndBJHgFN4iBT3SHs2m7HXFDh_jQm2MilqBY8d92-wDWTGD_6NpJi31v1leagkLr29hS2O803bpEWPluOejhrsJQnycuIr32VVzubSHC_kPh6BBEAtSyt72)
+
+<a name="ref17"></a>[17] [indianexpress.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHvpeTRiHKmeHp0Ur8ZRccbZRw1W3lClUSRr_QFQQoCIUQc-X1L5kK4Nf-u9XEmrZkVGCq8LB_aAY-8NbeiMWJZJ-M5WdntxweDn4mCYJWkTWXI6n4JEMv8ffRQ1h8v0i-Sqmg0wDVDMsynNaOWk2nl2uK_huffDLHbDlPg_bsV0DZOizU8-N9cmpN2pRtI5RBsGdAr1lhCB-2FaWmjeUSNbSWaXvEqU1sBVVgEZACfVW3VReZbMLIW)
+
+<a name="ref18"></a>[18] [economictimes.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFB6W3Qibi-K9NxdPHt9RAAK8L0kig3W8Za3LH7sOLaX5LszSrsoDAKizE8tnA2a6phE2Y9Lq6FhVt4h3bSklNFZSBqCJqARrp_MpjLa2tx0TZcj0Zw5hk1jNIYssGx2sBJM6GLhey9BF5U9uJjw8-9IWM_irwld1sHhSRDKuabhhO0WoWKtuf_O7o0BYaVKeta54BMZrgGaMTJmSaXdhRiwIOJS5G0eMX4_ewvM2yFkoQPz0AXScUITvKX41j9INxhEauFUw==)
+
+<a name="ref20"></a>[20] [etvbharat.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEYkHABU4G81VjrCNsRV9RLH0apyY67j9fk13DQhLtTRuZGDpB4gix1-bie5W2NIUM5Ol9C5pO3FjaZSO-S_2OKBTvlqeyVvPJV7H3N7mgGTZArPJkwRBiNkqZ92ewg8lPSnCvZR5xviTQ4bww2HT6Zznb0poPja6gt5fOVBoaHmmg6cV8ZUlcy8hUlYXsMQTAln_NXYoj2MX6QPS9L3rITTeiLtxvamyfAHwlY8z3QCrhyQXMrnmWq)
+
+<a name="ref31"></a>[31] [digitalindia.gov.in](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG_X0up69OYE58xZmVkUsTVVaz7zhVgQ49NAgRT2wI4ZANHsVDhNzSbysGoSQ-l0s3Po-DTK8hxeP6DpJ3DWsngAntWFmlUVXmIRT2v_yOePEqddHF36Pum6tQW5SKIbmtp__wCULATExAh3jXEYBEwI-gBM5MqkwMva28o0vlAKsEfjUmnFOm78lBv8ibO1Gsk)
+
+<a name="ref33"></a>[33] [imarcgroup.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEZnpebbdGwA-3GxI10FLLU-ZP2J0DJ4EFsVMZavLNTLfY7FB8FqtWwCHfv0CalA5bmAqrXU1nEbYECrht_HQRuFffAXk5TQr6CgF9ndimp_TGNdouw6ZSQFW3srVW-qAfYh78TFd4E2N2aViqi3SS8PH7y2-g=)
+
+<a name="ref35"></a>[35] [tracedataresearch.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGKliVdvhKw3QCnH5F9t-pEcx0x06g9pK1JDkkNkUBfZMdUDC7omAOPtoGdvNpqXSZ5YzklxOFePPkhv8P7mBQOhjcTHJW6kkEhcxoOvazOu1mymkyNUqbTZMpeDmr2o0par7QJ4XqNYDj3W2q4AskUxNqWvUODM3sl-i0fgh-Cv14Ko4fKIbIGL9eu6Q==)
+
+<a name="ref36"></a>[36] [datamites.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGpR1YhTpiELnPJmMrvopFUgq035RBRKKlMCDxf4tuVX40KCEJV6HkKn5uMYjnHEK1_bXULl4v2sleXiVXbvpOTbi9eutMSq4yV6SM6DTx7MydBv4on_q0KVSa4lbo-prI7Ks6sDbwcmUqkTyKu2Uqp5BkALWHxB1julTDsltjb8GndIdeCXwAeM4qHelQ3C40O7v5VQjrghnkmKrk=)
+
+<a name="ref37"></a>[37] [cambridgeinfotech.io](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGqgNbA13jfZG87ePVGwSaPlYV8Mz_32xNru-nexQSL9mr7bVZ7ZzPzwKqVUSAHTs3v7cf-0kIeIsk7c7ikaUt2XnyUK3aaEjWVceoNVvnxAaJWI5K0SWJIQ8oLYUa3SrI7QjFxxnAgfvmojC3t9NA=)
+
+<a name="ref38"></a>[38] [analytixlabs.co.in](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFw_-7Jg5tUYN0N4khfQsMFE5K90tTIrhTAMdZN_y8XsB5_1LASKft6P5ZU1oAExJHivoR_XhmEktTN0BU9dIhOmzLtPGt9Tk_ERzH40ZBl5oTAACKN2cUarVKYI0h4Z4xJP_9UfzymoDRTfY-_Tq7WW7lSqo6tzY9NXSeWwycPPeYmNR4FUA==)
+
+<a name="ref41"></a>[41] [researchandmarkets.com](https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFSqyFG4LWTbOlLW8dqvqixegyIaO11rQocVirWabroWyxHcb4ZhRQdW6EHkDQ0RXvSuWSfw15YTOF37tzkx9dNpY0NYkOOPxLnQ02A2v3ckYOL8J3nHwXFAYseoM1gn1ARAtSVfIDbRTXbFgOXEt1xhHBRDood1-0og_z_vVb8Z9xDBXpNI0jk7nFT7nzOidkCcImIbb5XRw==)
+

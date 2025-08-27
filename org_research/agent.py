@@ -7,6 +7,7 @@ from google.adk.agents.callback_context import CallbackContext
 from .tools.mongoupload import update_project_report, create_blank_project
 from .sub_agents.client_org_research import organizational_intelligence_agent
 from .config import config
+# from .output_html import RES
 
 # ----------------------------------------------------------------------
 # Storage Callback Functions
@@ -17,11 +18,16 @@ def store_organizational_report(callback_context: CallbackContext):
         client_id = callback_context.state.get('client_id')
         client_id = client_id.replace('"','')
         org_report = callback_context.state.get('organizational_intelligence_agent')
-        
+        # org_report_html = RES
+        org_report_html_inline = callback_context.state.get('org_html')
+        print("-"*100)
+        print(org_report_html_inline)
+        print("-"*100)
         if client_id and org_report:
             update_project_report(
                 client_id=client_id, 
-                report=org_report,
+                report_raw=org_report,
+                report_html=org_report_html_inline,
                 report_type="client_org_research"
             )
             print(f"Organizational intelligence report stored successfully for client {client_id}")
