@@ -1,0 +1,14 @@
+import uvicorn
+from google.adk.cli.fast_api import get_fast_api_app
+
+# Create the ADK FastAPI application
+app = get_fast_api_app(agents_dir=".",web=True)
+
+if __name__ == "__main__":
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8501,
+        ssl_keyfile="/opt/sales_agent/SSLCerts/key.pem",
+        ssl_certfile="/opt/sales_agent/SSLCerts/globalknowledgetechcom.pfx"
+    )
