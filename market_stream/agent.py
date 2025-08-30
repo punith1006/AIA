@@ -10,7 +10,7 @@ from .sub_agents.target_org_research import sales_intelligence_pipeline, sales_p
 from .sub_agents.prospect_research import prospect_researcher
 from .sub_agents.market_context import market_intelligence_agent
 from .config import config
-
+import requests
 # ----------------------------------------------------------------------
 # Storage Callback Functions
 # ----------------------------------------------------------------------
@@ -492,6 +492,23 @@ determine_sales = LlmAgent(
     output_key="sales_activator"
 )
 
+def harbinger_message(callback_context:CallbackContext):
+    project_id = callback_context.state["project_id"]
+    requests.put(f"https://stu.globalknowledgetech.com:8444/project/project-status-update/{project_id}/",
+    headers = {'Content-Type': 'application/json'},
+    data = json.dumps({"sub_status": f"Completed",}))
+    print("""############################################################################################
+    GALACTUS HAS ARRIVED
+    ################################################################################################""")
+
+harbinger = LlmAgent(
+    name = "harbinger",
+    model = config.worker_model,
+    description = "Announces the end of the markdown reports being generated",
+    instruction = "Output the word 'markdown' in capital letters",
+    output_key = "harbinger",
+    after_agent_callback = [harbinger_message]
+)
 # ----------------------------------------------------------------------
 # Simplified Sequential Agent
 # ----------------------------------------------------------------------
@@ -521,6 +538,7 @@ simplified_intelligence_agent = SequentialAgent(
         conditional_sales_intelligence_agent,
         prospect_prompt_builder,                # Build prospect prompt
         prospect_researcher,                   # Execute prospect research + auto-store
+        harbinger,
         context_html_copmposer,
         segmentation_html_composer,
         target_html_composer
