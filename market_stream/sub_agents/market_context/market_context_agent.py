@@ -789,15 +789,6 @@ market_report_composer = LlmAgent(
     after_agent_callback=wikipedia_citation_callback,
 )
 
-from .con_template import CON_TEMPLATE
-
-html_converter = LlmAgent(
-    model=config.critic_model,
-    name="html_converter",
-    description="Converts markdown market analysis reports to styled HTML using the provided template.",
-    instruction=CON_TEMPLATE,
-    output_key="context_html",
-)
 
 # --- Market Research Pipeline and Main Agent ---
 market_research_pipeline = SequentialAgent(
@@ -815,8 +806,7 @@ market_research_pipeline = SequentialAgent(
                 enhanced_market_search,
             ],
         ),
-        market_report_composer,
-        html_converter,  # Add the HTML converter here
+        market_report_composer
     ],
 )
 

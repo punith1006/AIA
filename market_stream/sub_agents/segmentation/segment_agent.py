@@ -1042,15 +1042,6 @@ segmentation_report_composer = LlmAgent(
     after_agent_callback=wikipedia_citation_replacement_callback,
 )
 
-# NEW HTML REPORT COMPOSER AGENT
-segmentation_html_composer = LlmAgent(
-    model=config.critic_model,
-    name="segmentation_html_composer",
-    include_contents="none",
-    description="Composes a stylish HTML segmentation analysis report using the template format.",
-    instruction=SEG_TEMPLATE,
-    output_key="seg_html",
-)
 
 segmentation_research_pipeline = SequentialAgent(
     name="segmentation_research_pipeline",
@@ -1067,8 +1058,7 @@ segmentation_research_pipeline = SequentialAgent(
                 enhanced_segmentation_search,
             ],
         ),
-        segmentation_report_composer,
-        segmentation_html_composer,  # Added HTML composer after markdown report
+        segmentation_report_composer
     ],
 )
 

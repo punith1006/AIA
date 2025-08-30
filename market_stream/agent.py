@@ -107,6 +107,7 @@ def extract_project_id(callback_context: CallbackContext):
     """Extract and store project_id from initial input for use by storage callbacks"""
     try:
         # Get the original input and extract project_id
+        callback_context.state["sales_research_findings"] = ""
         input_data = callback_context.input_data
         if isinstance(input_data, dict) and 'project_id' in input_data:
             callback_context.state['project_id'] = input_data['project_id']
@@ -172,7 +173,7 @@ segmentation_prompt_builder = LlmAgent(
         Output ONLY a valid JSON object in the following format. Do not include any extra text or commentary.
         {
             "product_name": "Your Product Name Here",
-            "product_description": "A detailed description of your product or service and what it does.",
+            "product_description": "A detailed description of your product or  service and what it does.",
             "industry_market": "The industry or market in which your product operates",
             "current_understanding": "Any existing insights about target demographics, market challenges, or strategic context from the user input."
         }
@@ -291,7 +292,7 @@ conditional_sales_prompt_builder = LlmAgent(
         If sales_activator.activate_sales is FALSE, output exactly: {{"skip_sales": true}}
         
         When creating sales intelligence input (if activate_sales is TRUE):
-        
+
         Market Intelligence Report: {market_intelligence_agent}
         
         Output a valid JSON object:
@@ -410,6 +411,43 @@ conditional_sales_intelligence_agent = LlmAgent(
 )
 
 # ----------------------------------------------------------------------
+# HTML report generator Agent
+# ----------------------------------------------------------------------
+
+from .sub_agents.segmentation.segmentation_report_template import SEG_TEMPLATE
+segmentation_html_composer = LlmAgent(
+    model=config.critic_model,
+    name="segmentation_html_composer",
+    include_contents="none",
+    description="Composes a stylish HTML segmentation analysis report using the template format.",
+    instruction=SEG_TEMPLATE,
+    output_key="seg_html",
+    after_agent_callback = [store_segmentation_report]
+)
+
+from .sub_agents.market_context.con_template import CON_TEMPLATE
+
+context_html_copmposer = LlmAgent(
+    model=config.critic_model,
+    name="html_converter",
+    description="Converts markdown market analysis reports to styled HTML using the provided template.",
+    instruction=CON_TEMPLATE,
+    output_key="context_html",
+    after_agent_callback = [store_context_report]
+)
+
+from .sub_agents.target_org_research.target_template import TARGET_TEMPLATE
+
+target_html_composer = LlmAgent(
+    model=config.critic_model,
+    name="html_report_generator",
+    description="Converts markdown sales intelligence reports into professional HTML format with responsive design and interactive elements.",
+    instruction=TARGET_TEMPLATE,
+    output_key="target_html",
+    after_agent_callback = [store_target_report]
+)
+
+# ----------------------------------------------------------------------
 # Project Creator Agent
 # ----------------------------------------------------------------------
 project_creator = LlmAgent(
@@ -482,7 +520,10 @@ simplified_intelligence_agent = SequentialAgent(
         conditional_sales_prompt_builder,
         conditional_sales_intelligence_agent,
         prospect_prompt_builder,                # Build prospect prompt
-        prospect_researcher,                    # Execute prospect research + auto-store
+        prospect_researcher,                   # Execute prospect research + auto-store
+        context_html_copmposer,
+        segmentation_html_composer,
+        target_html_composer
     ]
 )
 

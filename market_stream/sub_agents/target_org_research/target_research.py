@@ -620,7 +620,7 @@ enhanced_sales_search = LlmAgent(
 
     **OUTPUT REQUIREMENTS:**
     Your final output must include:
-    - All previous research findings (preserved)
+    - All UNIQUE previous research findings (preserved)
     - All new research findings (clearly integrated)
     - Complete product-organization cross-analysis
     - Specific stakeholder details with contact information
@@ -635,6 +635,7 @@ enhanced_sales_search = LlmAgent(
     - Deliver immediately actionable sales intelligence
 
     Do not skip any follow-up queries. Complete comprehensive research that fills all identified gaps.
+    **CRITICAL**: Do not preserve the text of the older findings as they are. Create a new concise report in the same format that only has all unique findings from all interations combined.
     """,
     tools=[google_search],
     output_key="sales_research_findings",
@@ -722,15 +723,7 @@ sales_report_composer = LlmAgent(
     after_agent_callback=citation_replacement_callback,
 )
 
-from .target_template import TARGET_TEMPLATE
 
-html_report_generator = LlmAgent(
-    model=config.critic_model,
-    name="html_report_generator",
-    description="Converts markdown sales intelligence reports into professional HTML format with responsive design and interactive elements.",
-    instruction=TARGET_TEMPLATE,
-    output_key="target_html",
-)
 
 # --- UPDATED PIPELINE ---
 sales_intelligence_pipeline = SequentialAgent(
@@ -748,8 +741,7 @@ sales_intelligence_pipeline = SequentialAgent(
                 enhanced_sales_search,
             ],
         ),
-        sales_report_composer,
-        html_report_generator
+        sales_report_composer
     ],
 )
 
