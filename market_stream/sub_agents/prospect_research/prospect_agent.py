@@ -17,18 +17,15 @@ from google.adk.models import Gemini
 
 from ...config import config
 
-market_report = ""
-segmentation_report = ""
-
 # --- Structured Output Models (UNCHANGED) ---
 class PersonaSearchQuery(BaseModel):
     """Model representing a specific search query for customer persona research."""
 
     search_query: str = Field(
-        description="A targeted query for customer persona research, focusing on user behavior, demographics, pain points, and decision-making factors."
+        description="A targeted query for persona research, focusing on user behavior, demographics, pain points, and decision-making factors."
     )
     research_focus: str = Field(
-        description="The focus area: 'competitor_customers', 'demographics_roles', 'pain_points_behavior', or 'apollo_optimization'"
+        description="The focus area: 'competitor_customers segment', 'demographics_info', 'pain_points_behavior', or 'apollo_optimization'"
     )
 
 
@@ -53,15 +50,8 @@ class PersonaData(BaseModel):
     persona_name: str = Field(description="Descriptive name for this persona")
     job_titles: list[str] = Field(description="List of relevant job titles")
     seniority_levels: list[str] = Field(description="Seniority levels (director, vp, c_suite, etc.)")
-    departments: list[str] = Field(description="Relevant departments")
-    company_sizes: list[str] = Field(description="Company size ranges")
-    industries: list[str] = Field(description="Relevant industries")
-    locations: list[str] = Field(description="Geographic locations/regions")
-    skills: list[str] = Field(description="Professional skills and competencies")
     keywords_positive: list[str] = Field(description="Keywords for positive targeting")
     keywords_negative: list[str] = Field(description="Keywords to exclude")
-    company_keywords: list[str] = Field(description="Company-level keywords")
-    technologies: list[str] = Field(description="Technologies and tools used")
     pain_points: list[str] = Field(description="Key challenges and problems")
     current_solutions: list[str] = Field(description="Existing tools/solutions they use")
 
@@ -77,43 +67,46 @@ class ApolloSearchParameters(BaseModel):
     
     # Person-level filters
     person_titles: list[str] = Field(default=[], description="Job titles to search for")
-    person_locations: list[str] = Field(default=[], description="Person locations (City, State, Country format)")
     person_seniorities: list[str] = Field(default=[], description="Seniority levels")
-    person_departments: list[str] = Field(default=[], description="Department classifications")
-    person_skills: list[str] = Field(default=[], description="Professional skills")
-    person_keywords: list[str] = Field(default=[], description="Keywords associated with person")
+    q_keywords: list[str] = Field(default=[], description="Keywords associated with person")
     
     # Organization-level filters
     organization_locations: list[str] = Field(default=[], description="Organization locations")
-    organization_num_employees_ranges: list[str] = Field(default=[], description="Employee count ranges")
-    organization_industry_tag_ids: list[str] = Field(default=[], description="Industry classifications")
-    organization_keywords: list[str] = Field(default=[], description="Organization keywords")
-    organization_technologies: list[str] = Field(default=[], description="Technologies used by organizations")
+    # organization_num_employees_ranges: list[str] = Field(default=[], description="Employee count ranges")
+    # organization_industry_tag_ids: list[str] = Field(default=[], description="Industry classifications")
+    q_organization_keyword_tags: list[str] = Field(default=[], description="Organization keywords")
+    # organization_technologies: list[str] = Field(default=[], description="Technologies used by organizations")
     
     # Exclusion filters
-    person_not_titles: list[str] = Field(default=[], description="Job titles to exclude")
-    person_not_keywords: list[str] = Field(default=[], description="Keywords to exclude for persons")
-    organization_not_keywords: list[str] = Field(default=[], description="Organization keywords to exclude")
+    # person_not_titles: list[str] = Field(default=[], description="Job titles to exclude")
+    # person_not_keywords: list[str] = Field(default=[], description="Keywords to exclude for persons")
+    # organization_not_keywords: list[str] = Field(default=[], description="Organization keywords to exclude")
     
     # Contact data filters
-    email_status: list[str] = Field(default=[], description="Email status filters (verified, likely, etc.)")
-    phone_status: list[str] = Field(default=[], description="Phone status filters")
+    contact_email_status: list[str] = Field(default=['verified'], description="Email status filters (verified)")
+    phone_status: list[str] = Field(default=['verified'], description="Phone status filters (verified)")
     
-    # Search configuration
-    page: int = Field(default=1, description="Page number for pagination")
-    per_page: int = Field(default=100, description="Results per page (max 100)")
-    sort_by_field: str = Field(default="relevance", description="Field to sort results by")
-    sort_ascending: bool = Field(default=False, description="Sort order")
+    # # Search configuration
+    # page: int = Field(default=1, description="Page number for pagination")
+    # per_page: int = Field(default=100, description="Results per page (max 100)")
+    # sort_by_field: str = Field(default="relevance", description="Field to sort results by")
+    # sort_ascending: bool = Field(default=False, description="Sort order")
 
 
 # --- Report-Based Context Extraction (NO SEARCH) ---
 report_context_analyzer = LlmAgent(
     model=config.worker_model,  # Use lighter model for analysis
     name="report_context_analyzer",
-    description="Analyzes market and segmentation reports to extract key context without external search.",
+    description="Analyzes provided market and segmentation reports to extract actionable context on product category, competitor landscape, key industries, buyer roles, company size patterns, and geographic markets, without external search.",
     instruction=f"""
-    You are a strategic report analyst. Analyze the provided market_report and segmentation_report to extract:
-
+    
+    **INPUT DATA:**
+    - user input : `{{input_analysis}}`
+    - Market Context: {{market_report}}
+    - Segmentation Report: {{segmentation_report}}
+    
+    You are a strategic market analyst. Analyze the provided market_report and segmentation_report to extract actionable insights:
+    
     **From Market Report:**
     - Product category and type
     - Primary competitor landscape
@@ -132,30 +125,29 @@ report_context_analyzer = LlmAgent(
 
     Provide output as JSON with keys:
     - product_category (string)
-    - competitors (list of strings)
+    - product_intent
+    - competitors (list of strings) and target organization(if true)
     - industries (list of strings)
-    - buyer_roles (list of strings)
-    - company_sizes (list of strings)
+    - buyer_roles / segments (list of strings)
     - geographic_markets (list of strings)
     - priority_segments (list of objects with name, characteristics)
     """,
     output_key="report_context",
 )
 
-# --- Consolidated Persona Generator (REDUCED SEARCH) ---
 persona_intelligence_generator = LlmAgent(
     model=config.search_model,  # Only one search-model usage
     name="persona_intelligence_generator",
-    description="Creates comprehensive persona intelligence with minimal targeted searches.",
+    description="Generates detailed persona intelligence using market reports and minimal targeted searches, focusing on relevant job titles, organization keywords, and target locations.",
     planner=BuiltInPlanner(
         thinking_config=genai_types.ThinkingConfig(include_thoughts=True)
     ),
     instruction=f"""
-    You are a persona intelligence expert creating Apollo.io-optimized customer profiles.
+    You are a persona intelligence expert creating Apollo.io-optimized customer profiles based on the provided market and segmentation reports (and any available company/product information).
 
     **PRIMARY DATA SOURCES:**
-    1. Market Report: `{market_report}`
-    2. Segmentation Report: `{segmentation_report}`
+    1. Market Report: `{{market_report}}`
+    2. Segmentation Report: `{{segmentation_report}}`
     3. Extracted Context: `{{report_context}}`
 
     **RESEARCH STRATEGY:**
@@ -175,31 +167,27 @@ persona_intelligence_generator = LlmAgent(
 
     **SEARCH FOCUS (If needed):**
     1. "[Identified product category] standard job titles Apollo.io format"
-    2. "[Key competitor] typical customer demographics LinkedIn"
+    2. "[Key competitor] typical customer demographics"
     3. "[Primary industry] technology adoption survey recent"
 
     **APOLLO.IO OPTIMIZATION REQUIREMENTS:**
-    Generate 4-6 distinct personas with complete data for:
-    
+    Generate 3-4 distinct target personas with complete data for:
+
     **Person-Level Filters:**
-    - person_titles: 15-25 specific job titles
+    - person_titles: 10-15 specific job titles
     - person_seniorities: All levels (individual_contributor, manager, director, vp, c_suite)
-    - person_departments: Relevant departments
-    - person_locations: Geographic targeting
-    - person_skills: Professional competencies
-    - person_keywords: Role-specific terms
+    - q_keywords: Role-specific terms
 
     **Organization-Level Filters:**
-    - organization_num_employees_ranges: Company sizes (1-10, 11-50, 51-200, 201-1000, 1001-5000, 5001-10000, 10000+)
-    - organization_industry_tag_ids: Industry classifications
-    - organization_keywords: Company characteristics
-    - organization_technologies: Technology stack indicators
+    - q_organization_keywords: Company characteristics
+    - organization_locations: Company target locations (City, State, Country)
 
     **Quality Standards:**
     - Prioritize report-based intelligence over web searches
-    - Use searches only to fill specific Apollo.io format requirements
+    - Use searches only to fill further understandings of the product and to generator apporpriate keywords
     - Generate actionable, precise targeting parameters
     - Include both positive and negative targeting criteria
+    - Exclude overly generic job titles and unrelated company tags
 
     Output complete PersonaDataCollection with all Apollo.io-ready data.
     """,
@@ -207,32 +195,35 @@ persona_intelligence_generator = LlmAgent(
     output_key="persona_data_collection",
 )
 
-# --- Quality Validator (NO SEARCH) ---
 persona_quality_validator = LlmAgent(
     model=config.critic_model,
     name="persona_quality_validator",
-    description="Validates persona completeness for Apollo.io without additional searches.",
+    description="Validates completeness and relevance of persona data (job titles, company keywords, and locations) for Apollo.io personas, without additional searches.",
     instruction=f"""
+    
+    **INPUT DATA:**
+    - Market Context: `{{report_context}}`
+    - Persona Data Collection: `{{persona_data_collection}}`
+    
     You are a data quality expert validating Apollo.io persona completeness.
 
     **VALIDATION CRITERIA:**
     Assess PersonaDataCollection against Apollo.io requirements:
 
     **Critical Requirements (Must Pass):**
-    - 4+ distinct personas covering different segments
-    - 15+ total unique job titles across personas
+    - 3+ distinct personas covering different segments
+    - 10+ total unique job titles across personas
     - Complete seniority level coverage (IC to C-suite)
-    - Company size ranges in Apollo format
-    - Industry classifications present
-    - Geographic targeting data available
-    - Professional skills and keywords defined
+    - Organization keywords identified
+    - Geographic targeting data available and in relevance with user_input and report findings
+    - Professional skills and keywords defined and in relevance with user_input and report findings
 
     **Quality Indicators:**
-    - Personas differentiated by role, company size, industry
-    - Technology adoption patterns identified
+    - Personas differentiated by target segment, industry
+    - adoption patterns identified
     - Pain points and current solutions documented
     - Exclusion criteria for negative targeting
-    - Comprehensive department and skill coverage
+    - Comprehensive and relevant industry keywords and titles coverage
 
     **GRADING:**
     - **Pass:** All critical requirements met, high-quality targeting data
@@ -247,38 +238,29 @@ persona_quality_validator = LlmAgent(
     output_key="persona_validation",
 )
 
-# --- Apollo Parameter Optimizer (NO SEARCH) ---
 apollo_parameter_optimizer = LlmAgent(
     model=config.critic_model,
     name="apollo_parameter_optimizer",
-    description="Generates optimized Apollo.io search parameters from persona data.",
+    description="Generates optimized Apollo.io search parameters from persona data, focusing on specific job titles, organization keywords, and company locations.",
     instruction=f"""
     You are an Apollo.io parameter optimization specialist.
 
     **INPUT DATA:**
     - Persona Data Collection: `{{persona_data_collection}}`
-    - Market Context: `{{report_context}}`
 
-    **CONSOLIDATION STRATEGY:**
-    Create comprehensive Apollo.io People Search parameters by:
+    Create comprehensive Apollo.io Search parameters by:
 
     **1. Person-Level Parameters:**
     - **person_titles:** All unique job titles from personas
     - **person_seniorities:** individual_contributor, manager, director, vp, c_suite, owner, partner, founder
-    - **person_departments:** engineering, marketing, sales, finance, operations, hr, legal, etc.
-    - **person_locations:** City, State, Country format from geographic data
-    - **person_skills:** Professional skills and competencies
     - **person_keywords:** Positive targeting keywords
 
     **2. Organization-Level Parameters:**
-    - **organization_num_employees_ranges:** ["1,10", "11,50", "51,200", "201,1000", "1001,5000", "5001,10000", "10000+"]
-    - **organization_industry_tag_ids:** Industry classifications from personas
-    - **organization_keywords:** Company-level targeting terms
+    - **organization_keywords:** Company-level targeting terms and Industry classifications from personas
+    - **organization_locations:** Company target locations (City, State, Country) and demographics info from user input
     - **organization_technologies:** Technology stack indicators
 
     **3. Exclusion Parameters:**
-    - **person_not_titles:** Irrelevant job titles to exclude
-    - **person_not_keywords:** Negative person keywords
     - **organization_not_keywords:** Negative company keywords
 
     **4. Quality & Contact Filters:**
@@ -308,22 +290,21 @@ def get_market_context(callback_context: CallbackContext):
 retrieve_market_report = LlmAgent(
     name="retrieve_market_report",
     model=config.worker_model,
-    description="Retrieves market intelligence and segmentation reports from state.",
+    description="Retrieves previously generated market analysis and segmentation reports from state for downstream use.",
     instruction="Output: 'Market and segmentation reports retrieved successfully.'",
     after_agent_callback=[get_market_context],
     output_key="report_retrieval_status"
 )
 
-# --- OPTIMIZED PIPELINE (Removed Loop and Reduced Search Usage) ---
 prospect_researcher = SequentialAgent(
     name="prospect_researcher",
-    description="Efficiently generates Apollo.io search parameters with minimal external searches.",
+    description="Orchestrates generation of Apollo.io search parameters focusing on relevant job titles, organization keywords, and company locations, using minimal external searches.",
     sub_agents=[
         retrieve_market_report,
-        report_context_analyzer,  # NO SEARCH - Analyzes existing reports
-        persona_intelligence_generator,  # MINIMAL SEARCH - Only 3-5 targeted searches
-        persona_quality_validator,  # NO SEARCH - Validates completeness
-        apollo_parameter_optimizer,  # NO SEARCH - Final parameter generation
+        report_context_analyzer,
+        persona_intelligence_generator,
+        persona_quality_validator,
+        apollo_parameter_optimizer,
     ],
 )
 

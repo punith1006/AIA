@@ -52,7 +52,7 @@ def store_target_report(callback_context: CallbackContext):
             )
             print(f"Target intelligence report stored successfully for project {project_id}")
         else:
-            print(f"Failed to store org report - project_id: {project_id}, report exists: {bool(org_report)}")
+            print(f"Failed to store org report - project_id: {project_id}, report exists: {bool(target_report)}")
     except Exception as e:
         print(f"Error storing organizational intelligence report: {e}")
 
@@ -410,9 +410,9 @@ conditional_sales_intelligence_agent = LlmAgent(
     after_agent_callback = [store_target_report]
 )
 
-# ----------------------------------------------------------------------
-# HTML report generator Agent
-# ----------------------------------------------------------------------
+# # ----------------------------------------------------------------------
+# # HTML report generator Agent
+# # ----------------------------------------------------------------------
 
 from .sub_agents.segmentation.segmentation_report_template import SEG_TEMPLATE
 segmentation_html_composer = LlmAgent(

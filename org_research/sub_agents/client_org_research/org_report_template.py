@@ -636,6 +636,28 @@ ORG_TEMPLATE = """
                 <li id="src-1"><span class="reference-number">[1]</span> <a href="[[SRC_1_URL]]" class="citation-link">[[SRC_1_TITLE]]</a></li>
                 <li id="src-2"><span class="reference-number">[2]</span> <a href="[[SRC_2_URL]]" class="citation-link">[[SRC_2_TITLE]]</a></li>
                 <li id="src-3"><span class="reference-number">[3]</span> <a href="[[SRC_3_URL]]" class="citation-link">[[SRC_3_TITLE]]</a></li>
+                <li id="src-4"><span class="reference-number">[4]</span> <a href="[[SRC_4_URL]]" class="citation-link">[[SRC_4_TITLE]]</a></li>
+                <li id="src-5"><span class="reference-number">[5]</span> <a href="[[SRC_5_URL]]" class="citation-link">[[SRC_5_TITLE]]</a></li>
+                <li id="src-6"><span class="reference-number">[6]</span> <a href="[[SRC_6_URL]]" class="citation-link">[[SRC_6_TITLE]]</a></li>
+                <li id="src-7"><span class="reference-number">[7]</span> <a href="[[SRC_7_URL]]" class="citation-link">[[SRC_7_TITLE]]</a></li>
+                <li id="src-8"><span class="reference-number">[8]</span> <a href="[[SRC_8_URL]]" class="citation-link">[[SRC_8_TITLE]]</a></li>
+                <li id="src-9"><span class="reference-number">[9]</span> <a href="[[SRC_9_URL]]" class="citation-link">[[SRC_9_TITLE]]</a></li>
+                <li id="src-10"><span class="reference-number">[10]</span> <a href="[[SRC_10_URL]]" class="citation-link">[[SRC_10_TITLE]]</a></li>
+                <li id="src-11"><span class="reference-number">[11]</span> <a href="[[SRC_11_URL]]" class="citation-link">[[SRC_11_TITLE]]</a></li>
+                <li id="src-12"><span class="reference-number">[12]</span> <a href="[[SRC_12_URL]]" class="citation-link">[[SRC_12_TITLE]]</a></li>
+                <li id="src-13"><span class="reference-number">[13]</span> <a href="[[SRC_13_URL]]" class="citation-link">[[SRC_13_TITLE]]</a></li>
+                <li id="src-14"><span class="reference-number">[14]</span> <a href="[[SRC_14_URL]]" class="citation-link">[[SRC_14_TITLE]]</a></li>
+                <li id="src-15"><span class="reference-number">[15]</span> <a href="[[SRC_15_URL]]" class="citation-link">[[SRC_15_TITLE]]</a></li>
+                <li id="src-16"><span class="reference-number">[16]</span> <a href="[[SRC_16_URL]]" class="citation-link">[[SRC_16_TITLE]]</a></li>
+                <li id="src-17"><span class="reference-number">[17]</span> <a href="[[SRC_17_URL]]" class="citation-link">[[SRC_17_TITLE]]</a></li>
+                <li id="src-18"><span class="reference-number">[18]</span> <a href="[[SRC_18_URL]]" class="citation-link">[[SRC_18_TITLE]]</a></li>
+                <li id="src-19"><span class="reference-number">[19]</span> <a href="[[SRC_19_URL]]" class="citation-link">[[SRC_19_TITLE]]</a></li>
+                <li id="src-20"><span class="reference-number">[20]</span> <a href="[[SRC_20_URL]]" class="citation-link">[[SRC_20_TITLE]]</a></li>
+                <li id="src-21"><span class="reference-number">[21]</span> <a href="[[SRC_21_URL]]" class="citation-link">[[SRC_21_TITLE]]</a></li>
+                <li id="src-22"><span class="reference-number">[22]</span> <a href="[[SRC_22_URL]]" class="citation-link">[[SRC_22_TITLE]]</a></li>
+                <li id="src-23"><span class="reference-number">[23]</span> <a href="[[SRC_23_URL]]" class="citation-link">[[SRC_23_TITLE]]</a></li>
+                <li id="src-24"><span class="reference-number">[24]</span> <a href="[[SRC_24_URL]]" class="citation-link">[[SRC_24_TITLE]]</a></li>
+                <li id="src-25"><span class="reference-number">[25]</span> <a href="[[SRC_25_URL]]" class="citation-link">[[SRC_25_TITLE]]</a></li>
             </ul>
         </section>
 

@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import asyncio, uuid
 import logging
+import time
 
 from google.adk.sessions.in_memory_session_service import InMemorySessionService
 from google.adk.runners import Runner
@@ -31,6 +32,10 @@ APP_NAME = "org_research"
 # Active sessions and running tasks
 sessions = {}
 running_tasks = {}
+stagnation_tasks = {}  # Track stagnation monitoring tasks
+
+# Stagnation detection configuration
+STAGNATION_TIMEOUT = 300  # 5 minutes in seconds
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -44,9 +49,45 @@ async def send_safe(ws: WebSocket, data: dict):
         logger.warning(f"Failed to send data through WebSocket: {e}")
         return False
 
+async def monitor_stagnation(session_id: str, last_event_time: dict):
+    """Monitor for stagnation and send alert if detected"""
+    while session_id in running_tasks:
+        await asyncio.sleep(10)  # Check every 10 seconds
+        
+        current_time = time.time()
+        time_since_last_event = current_time - last_event_time["time"]
+        
+        if time_since_last_event > STAGNATION_TIMEOUT:
+            session_data = sessions.get(session_id)
+            ws = session_data.get("ws") if session_data else None
+            
+            if ws:
+                stagnation_message = {
+                    "type": "stagnation",
+                    "message": f"No activity detected for {int(time_since_last_event)} seconds. The agent may be experiencing delays or processing complex tasks.",
+                    "seconds_stagnant": int(time_since_last_event)
+                }
+                
+                success = await send_safe(ws, stagnation_message)
+                if success:
+                    logger.warning(f"Stagnation detected for session {session_id}: {int(time_since_last_event)} seconds")
+                
+            # Reset the timer to avoid spam
+            last_event_time["time"] = current_time
+            
+            # Wait longer before checking again after sending stagnation alert
+            await asyncio.sleep(60)
+
 async def run_agent_task(session_id: str, user_id: str, query_text: str):
     """Run the agent task independently of WebSocket connection"""
     content = types.Content(role="user", parts=[types.Part(text=query_text)])
+    
+    # Initialize last event time tracker
+    last_event_time = {"time": time.time()}
+    
+    # Start stagnation monitoring task
+    stagnation_task = asyncio.create_task(monitor_stagnation(session_id, last_event_time))
+    stagnation_tasks[session_id] = stagnation_task
     
     try:
         runner = Runner(agent=root_agent, app_name=APP_NAME, session_service=session_service)
@@ -56,6 +97,9 @@ async def run_agent_task(session_id: str, user_id: str, query_text: str):
             new_message=content,
             run_config=config.run_config
         ):
+            # Update last event time
+            last_event_time["time"] = time.time()
+            
             # Check if session still exists and has WebSocket connection
             session_data = sessions.get(session_id)
             ws = session_data.get("ws") if session_data else None
@@ -112,6 +156,25 @@ async def run_agent_task(session_id: str, user_id: str, query_text: str):
                     logger.info(f"Final event: {str(event)}")
                     logger.info("-" * 100)
                     
+        # Agent generator is exhausted - all steps completed
+        logger.info(f"Agent task fully completed for session {session_id}")
+        session_data = sessions.get(session_id)
+        ws = session_data.get("ws") if session_data else None
+        
+        if ws:
+            # Send completion notification
+            await send_safe(ws, {
+                "type": "agent_completed",
+                "message": "Agent has completed all steps"
+            })
+            
+            # Close the WebSocket connection
+            try:
+                await ws.close(code=1000, reason="Agent task completed")
+                logger.info(f"WebSocket closed for completed session {session_id}")
+            except Exception as e:
+                logger.warning(f"Error closing WebSocket for session {session_id}: {e}")
+                    
     except Exception as e:
         logger.error(f"Error in agent task: {str(e)}")
         session_data = sessions.get(session_id)
@@ -119,9 +182,19 @@ async def run_agent_task(session_id: str, user_id: str, query_text: str):
         if ws:
             await send_safe(ws, {"type": "error", "message": str(e)})
     finally:
+        # Clean up stagnation monitoring
+        if session_id in stagnation_tasks:
+            stagnation_tasks[session_id].cancel()
+            del stagnation_tasks[session_id]
+            
         if session_id in running_tasks:
             del running_tasks[session_id]
-        logger.info(f"Agent task completed for session {session_id}")
+            
+        # Clean up session data
+        if session_id in sessions:
+            del sessions[session_id]
+            
+        logger.info(f"Agent task and session cleanup completed for session {session_id}")
 
 @app.websocket("/run-live-agent")
 async def run_live_agent_ws(websocket: WebSocket):
@@ -148,33 +221,29 @@ async def run_live_agent_ws(websocket: WebSocket):
     await websocket.send_json({"type": "session_created", "session_id": session_id})
     
     try:
-        while True:
-            data = await websocket.receive_json()
-            
-            if "query" not in data:
-                await websocket.send_json({
-                    "type": "error", 
-                    "message": "Missing 'query' field in message"
-                })
-                continue
-            
-            query_text = data["query"]
-            
-            if session_id in running_tasks:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": "A task is already running for this session"
-                })
-                continue
-            
-            # Start the agent task
-            task = asyncio.create_task(run_agent_task(session_id, user_id, query_text))
-            running_tasks[session_id] = task
-            
+        # Wait for the single query from the client
+        data = await websocket.receive_json()
+        
+        if "query" not in data:
             await websocket.send_json({
-                "type": "task_started",
-                "message": "Agent task started"
+                "type": "error", 
+                "message": "Missing 'query' field in message"
             })
+            return
+        
+        query_text = data["query"]
+        
+        # Start the agent task (only one per session)
+        task = asyncio.create_task(run_agent_task(session_id, user_id, query_text))
+        running_tasks[session_id] = task
+        
+        await websocket.send_json({
+            "type": "task_started",
+            "message": "Agent task started"
+        })
+        
+        # Wait for the agent task to complete
+        await task
             
     except WebSocketDisconnect:
         logger.info(f"WebSocket disconnected for session {session_id}")
@@ -190,7 +259,12 @@ async def run_live_agent_ws(websocket: WebSocket):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "active_sessions": len(sessions), "running_tasks": len(running_tasks)}
+    return {
+        "status": "healthy", 
+        "active_sessions": len(sessions), 
+        "running_tasks": len(running_tasks),
+        "stagnation_monitors": len(stagnation_tasks)
+    }
 
 @app.get("/sessions")
 async def get_sessions():
@@ -201,13 +275,19 @@ async def get_sessions():
             "user_id": data["user_id"],
             "has_websocket": data["ws"] is not None,
             "has_running_task": sid in running_tasks,
+            "has_stagnation_monitor": sid in stagnation_tasks,
             "created_at": data.get("created_at", "unknown")
         }
     return {
         "sessions": session_info,
         "total_sessions": len(sessions),
-        "total_running_tasks": len(running_tasks)
+        "total_running_tasks": len(running_tasks),
+        "total_stagnation_monitors": len(stagnation_tasks),
+        "stagnation_timeout_seconds": STAGNATION_TIMEOUT
     }
 
+# if __name__ == "__main__":
+#     uvicorn.run("agent_exec_stateless:app", host="0.0.0.0", port=8052, ssl_keyfile="/opt/sales_agent/SSLCerts/key.pem", ssl_certfile="/opt/sales_agent/SSLCerts/cert.pem", log_level="info")
+
 if __name__ == "__main__":
-    uvicorn.run("agent_exec_stateless:app", host="0.0.0.0", port=8052, ssl_keyfile="/opt/sales_agent/SSLCerts/key.pem", ssl_certfile="/opt/sales_agent/SSLCerts/cert.pem", log_level="info")
+    uvicorn.run("agent_exec_stateless:app", host="0.0.0.0", port=8052, log_level="info")

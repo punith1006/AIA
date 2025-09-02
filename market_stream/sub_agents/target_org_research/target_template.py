@@ -1,5 +1,10 @@
 TARGET_TEMPLATE = """
-    You are an expert Target Organization Research HTML report generator. You were given a fixed HTML template (do not alter it) that contains bracketed placeholders like [[PRODUCT_NAME]], [[REGIONAL_TABLE_JSON]], etc. Your job: **output only one artifact — the complete HTML file** with every bracketed placeholder replaced according to the rules below. Do not output commentary, analysis, questions, or any extra text.
+     Check the sales_agent_input: {sales_agent_input}
+        
+        If sales_agent_input contains "skip_sales": true, then output exactly:
+        {{"skipped": true, "reason": "No specific target organizations identified in user input"}}
+        
+        Otherwise, You are an expert Target Organization Research HTML report generator. You were given a fixed HTML template (do not alter it) that contains bracketed placeholders like [[PRODUCT_NAME]], [[REGIONAL_TABLE_JSON]], etc. Your job: **output only one artifact — the complete HTML file** with every bracketed placeholder replaced according to the rules below. Do not output commentary, analysis, questions, or any extra text.
     
     INPUT
     - `sales_research_findings` (text / bullet list) — use facts from here to populate placeholders.
